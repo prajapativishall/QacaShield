@@ -1,0 +1,117 @@
+.app-sidebar {
+  width: var(--sidebar-width);
+  background-color: #ffffff;
+  color: var(--text-primary);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border-right: 1px solid var(--border-color);
+  box-shadow: 2px 0 8px rgba(0,0,0,0.05);
+  z-index: 20;
+}
+
+.sidebar-header {
+  height: 80px;
+  display: flex;
+  align-items: center;
+  padding: 0 var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
+}
+
+.sidebar-logo {
+  margin-right: var(--spacing-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ef4444; /* Red Shield */
+}
+
+.brand-name {
+  font-weight: 700;
+  font-size: 1.2rem;
+  color: #1f2937;
+  letter-spacing: -0.5px;
+}
+
+.sidebar-nav {
+  flex: 1;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  padding: 12px var(--spacing-lg);
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: all 0.2s ease;
+  border-left: 4px solid transparent;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.nav-link:hover {
+  background-color: #f9fafb;
+  color: var(--text-primary);
+}
+
+.nav-link.active {
+  background-color: #fef2f2; /* Light Red bg */
+  color: #ef4444; /* Red text */
+  border-left-color: #ef4444;
+}
+
+.nav-icon {
+  margin-right: var(--spacing-md);
+  font-size: 1.1rem;
+  width: 24px;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sidebar-footer {
+  padding: var(--spacing-lg);
+  /* border-top: 1px solid var(--border-color); */
+  margin-bottom: var(--spacing-md);
+}
+
+.user-info-mini {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.avatar-circle {
+  width: 40px;
+  height: 40px;
+  background-color: #ef4444; /* Red Avatar */
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.user-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.user-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.user-role {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-transform: capitalize;
+}

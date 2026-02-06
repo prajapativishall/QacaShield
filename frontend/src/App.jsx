@@ -1,0 +1,79 @@
+import React from "react";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider, useAuth } from "./context/AuthContext.jsx";
+import { Dashboard } from "./pages/Dashboard.jsx";
+import { Login } from "./pages/Login.jsx";
+import { Reports } from "./pages/Reports.jsx";
+import { UserManagement } from "./pages/UserManagement.jsx";
+import { Header } from "./components/Header.jsx";
+import { Sidebar } from "./components/Sidebar.jsx";
+import "./styles/App.css";
+
+function ProtectedRoute({ children, allowedRoles }) {
+  const { user } = useAuth();
+  
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (allowedRoles && !allowedRoles.includes(user.role)) {
+    return <div className="p-4 text-red-500">Access Denied: You do not have permission to view this page.</div>;
+  }
+
+  return children;
+}
+
+function AppContent() {
+  const { user } = useAuth();
+  
+  return (
+    <div className="app-shell">
+      {user && <Sidebar />}
+      <div className="main-content">
+        <Header />
+        <main>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            
+            <Route 
+              path="/" 
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              } 
+            />
+            
+            <Route 
+              path="/reports" 
+              element={
+                <ProtectedRoute allowedRoles={["MANAGER", "ADMIN"]}>
+                  <Reports />
+                </ProtectedRoute>
+              } 
+            />
+
+            <Route 
+              path="/users" 
+              element={
+                <ProtectedRoute allowedRoles={["MANAGER", "ADMIN"]}>
+                  <UserManagement />
+                </ProtectedRoute>
+              } 
+            />
+          </Routes>
+        </main>
+      </div>
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <BrowserRouter>
+        <AppContent />
+      </BrowserRouter>
+    </AuthProvider>
+  );
+}

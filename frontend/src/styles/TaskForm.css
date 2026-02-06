@@ -1,0 +1,228 @@
+.task-form-container {
+  background: white;
+  padding: 32px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  margin-bottom: 24px;
+}
+
+.task-form-container h2 {
+  font-size: 1.25rem;
+  font-weight: 500;
+  color: #1f2937;
+  margin-bottom: 16px;
+}
+
+.form-divider {
+  border: none;
+  border-top: 1px solid #e5e7eb;
+  margin-bottom: 24px;
+}
+
+.assignment-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 32px;
+  row-gap: 24px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-group label {
+  font-size: 0.9rem;
+  color: #374151;
+  font-weight: 500;
+}
+
+.input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.form-group input,
+.form-group select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  color: #1f2937;
+  background: white;
+  height: 42px;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: #ef4444;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.1);
+}
+
+/* Icon positioning */
+.input-icon {
+  position: absolute;
+  color: #9ca3af;
+  pointer-events: none;
+}
+
+.left-icon {
+  left: 12px;
+  z-index: 10;
+}
+
+.right-icon {
+  right: 12px;
+}
+
+.with-left-icon {
+  padding-left: 40px !important;
+}
+
+/* Special styling for Employee select to hide default arrow if custom menu icon used, 
+   but standard select arrow is hard to hide cross-browser without appearance: none.
+   Let's keep it simple or use appearance: none */
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-color: white;
+}
+
+.menu-icon {
+  pointer-events: none;
+}
+
+/* Full width slider row */
+.full-width {
+  grid-column: 1 / -1;
+}
+
+.slider-group {
+  margin-top: 8px;
+}
+
+.slider-container {
+  display: flex;
+  align-items: center;
+  padding: 10px 0;
+}
+
+/* Custom Range Slider */
+.custom-slider {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 6px;
+  background: #93c5fd; /* Light blue track */
+  border-radius: 5px;
+  outline: none;
+  padding: 0;
+  margin: 0;
+}
+
+.custom-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: white;
+  border: 3px solid #60a5fa; /* Blue border */
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.custom-slider::-moz-range-thumb {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: white;
+  border: 3px solid #60a5fa;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Footer */
+.form-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 32px;
+  border-top: 1px solid transparent; /* Just spacing */
+}
+
+.preview-link {
+  background: none;
+  border: none;
+  color: #6b7280;
+  font-size: 0.95rem;
+  cursor: pointer;
+  padding: 0;
+}
+
+.preview-link:hover {
+  text-decoration: underline;
+  color: #374151;
+}
+
+.radius-display {
+  font-size: 1.5rem;
+  font-weight: 500;
+  color: #1f2937;
+}
+
+.create-btn {
+  background-color: #ef4444; /* Red */
+  color: white;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.create-btn:hover {
+  background-color: #dc2626;
+}
+
+/* Map Preview */
+.map-preview-box {
+  margin-top: 24px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+  height: 300px;
+  position: relative;
+}
+
+.close-map-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  z-index: 1000;
+}
+
+@media (max-width: 768px) {
+  .assignment-form {
+    grid-template-columns: 1fr;
+  }
+  
+  .form-footer {
+    flex-direction: column;
+    gap: 20px;
+  }
+}

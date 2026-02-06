@@ -1,0 +1,112 @@
+.recent-activities-card {
+    background: white;
+    border-radius: 1.2rem;
+    padding: 1.6rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    flex: 1;
+    min-width: 30rem;
+    display: flex;
+    flex-direction: column;
+    height: 30rem; /* Scalable height */
+}
+
+.card-header {
+    margin-bottom: 1.6rem;
+}
+
+.card-header h3 {
+    margin: 0;
+    font-size: 1.4rem;
+    color: #1f2937;
+    font-weight: 600;
+}
+
+.activities-list {
+    flex: 1;
+    overflow-y: auto;
+    padding-right: 8px; /* For scrollbar space */
+}
+
+/* Custom Scrollbar */
+.activities-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.activities-list::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.activities-list::-webkit-scrollbar-thumb {
+    background: #d1d5db;
+    border-radius: 3px;
+}
+
+.activity-item {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+    align-items: flex-start;
+}
+
+.activity-item:last-child {
+    margin-bottom: 0;
+}
+
+.activity-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.activity-icon.assignment {
+    background-color: #EFF6FF;
+    color: #3B82F6;
+}
+
+.activity-icon.completion {
+    background-color: #F5F3FF;
+    color: #8B5CF6;
+}
+
+.activity-icon.alert {
+    background-color: #FEF2F2;
+    color: #EF4444;
+}
+
+.activity-content {
+    flex: 1;
+}
+
+.activity-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 2px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.activity-time {
+    font-size: 0.7rem;
+    color: #9CA3AF;
+    font-weight: 400;
+}
+
+.activity-desc {
+    font-size: 0.875rem;
+    color: #6B7280;
+    line-height: 1.4;
+}
+
+.no-activities, .recent-activities-loading {
+    color: #9CA3AF;
+    text-align: center;
+    margin-top: 40px;
+    font-size: 0.9rem;
+}

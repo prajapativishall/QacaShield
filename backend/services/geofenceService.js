@@ -1,0 +1,41 @@
+import { Trip } from "../models/Trip.js";
+
+export function startReturnHomeMonitor(sequelize, io) {
+  const intervalMs = Number(process.env.RETURN_HOME_INTERVAL_MS || 10000);
+  setInterval(async () => {
+    const trips = await Trip.findAll({
+      where: { current_phase: "RETURNING_HOME", active: true }
+    });
+    for (const trip of trips) {
+      if (!trip.home_lat || !trip.home_lng || !trip.dest_lat || !trip.dest_lng) continue;
+      const dist = haversine(
+        Number(trip.dest_lat),
+        Number(trip.dest_lng),
+        Number(trip.home_lat),
+        Number(trip.home_lng)
+      );
+      if (dist <= 0.1) {
+        trip.current_phase = "FINALIZED";
+        trip.active = false;
+        trip.actual_end_time = new Date();
+        await trip.save();
+        io.to(`trip:${trip.id}`).emit("tripFinalized", { tripId: trip.id });
+      }
+    }
+  }, intervalMs);
+}
+
+function haversine(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+function toRad(v) {
+  return (v * Math.PI) / 180;
+}
