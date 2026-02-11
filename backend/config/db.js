@@ -10,7 +10,9 @@ export const sequelize = new Sequelize(
     dialect: "mysql",
     logging: false,
     dialectOptions: {
-      socketPath: process.env.DB_HOST === 'localhost' ? '/var/run/mysqld/mysqld.sock' : undefined
+      socketPath: (process.platform !== 'win32' && process.env.DB_HOST === 'localhost') 
+        ? '/var/run/mysqld/mysqld.sock' 
+        : undefined
     }
   }
 );
