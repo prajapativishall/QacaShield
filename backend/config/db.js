@@ -5,10 +5,13 @@ export const sequelize = new Sequelize(
   process.env.DB_USER || "root",
   process.env.DB_PASS || "",
   {
-    host: process.env.DB_HOST || "localhost",
+    host: process.env.DB_HOST || "127.0.0.1",
     port: Number(process.env.DB_PORT || 3306),
     dialect: "mysql",
-    logging: false
+    logging: false,
+    dialectOptions: {
+      socketPath: process.env.DB_HOST === 'localhost' ? '/var/run/mysqld/mysqld.sock' : undefined
+    }
   }
 );
 
@@ -29,6 +32,7 @@ export async function initDB() {
     
     User.hasMany(Trip, { foreignKey: 'user_id' });
     Trip.belongsTo(User, { foreignKey: 'user_id' });
+    Trip.belongsTo(User, { foreignKey: 'assigned_by', as: 'assigner' });
 
     User.hasMany(ExitLog, { foreignKey: 'user_id' });
     ExitLog.belongsTo(User, { foreignKey: 'user_id' });
@@ -37,48 +41,80 @@ export async function initDB() {
     Log.belongsTo(Trip, { foreignKey: 'trip_id' });
 
     await sequelize.sync({ alter: false });
+
+    // Helper function to add column if it doesn't exist
+    async function addColumnIfNotExists(tableName, columnName, definition) {
+        try {
+            const [results] = await sequelize.query(
+                `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '${tableName}' AND COLUMN_NAME = '${columnName}' AND TABLE_SCHEMA = DATABASE()`
+            );
+            if (results.length === 0) {
+                await sequelize.query(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition}`);
+                console.log(`Added column ${columnName} to ${tableName}`);
+            }
+        } catch (e) {
+            console.log(`Error adding column ${columnName} to ${tableName}:`, e.message);
+        }
+    }
     
     // Manually upgrade route_polyline to LONGTEXT to support long trips
     try {
         await sequelize.query("ALTER TABLE trips MODIFY COLUMN route_polyline LONGTEXT");
     } catch (e) {
-        // Ignore error if table doesn't exist or other minor issues
-        console.log("Note: Could not alter route_polyline to LONGTEXT (might already be set or table issue).");
+        console.log("Note: Could not alter route_polyline to LONGTEXT.");
+    }
+
+    // Add missing columns to trips
+    await addColumnIfNotExists('trips', 'assigned_by', 'INTEGER UNSIGNED NULL AFTER user_id');
+    await addColumnIfNotExists('trips', 'destination_address', 'VARCHAR(255) NULL AFTER dest_lng');
+    await addColumnIfNotExists('trips', 'helmet_image_url', 'VARCHAR(255) NULL');
+    await addColumnIfNotExists('trips', 'is_safety_verified', 'TINYINT(1) DEFAULT 0');
+    await addColumnIfNotExists('trips', 'task_title', 'VARCHAR(200) NULL');
+    await addColumnIfNotExists('trips', 'priority', "ENUM('LOW', 'MEDIUM', 'HIGH') DEFAULT 'MEDIUM'");
+    await addColumnIfNotExists('trips', 'geofence_radius', 'INTEGER DEFAULT 100');
+    await addColumnIfNotExists('trips', 'route_optimization', "ENUM('FASTEST', 'SAFEST') DEFAULT 'FASTEST'");
+    await addColumnIfNotExists('trips', 'expected_start_time', 'DATETIME NULL');
+    await addColumnIfNotExists('trips', 'buffer_time', 'INTEGER DEFAULT 15');
+    await addColumnIfNotExists('trips', 'actual_start_time', 'DATETIME NULL');
+    await addColumnIfNotExists('trips', 'actual_end_time', 'DATETIME NULL');
+
+    // Update ENUM for current_phase
+    try {
+        await sequelize.query(`
+            ALTER TABLE trips 
+            MODIFY COLUMN current_phase 
+            ENUM('PLANNED', 'PENDING', 'ACCEPTED', 'ACTIVE', 'REACHED_DESTINATION', 'RETURNING_HOME', 'FINALIZED', 'COMPLETED') 
+            DEFAULT 'PENDING'
+        `);
+    } catch (e) {
+        console.log("Note: Could not update current_phase ENUM.");
     }
 
     // Add lat/lng columns to trip_logs if they don't exist
-    try {
-        await sequelize.query("ALTER TABLE trip_logs ADD COLUMN lat DECIMAL(10, 7) NULL");
-        await sequelize.query("ALTER TABLE trip_logs ADD COLUMN lng DECIMAL(10, 7) NULL");
-    } catch (e) {
-        // Ignore "Duplicate column name" error
-    }
+    await addColumnIfNotExists('trip_logs', 'lat', 'DECIMAL(10, 7) NULL');
+    await addColumnIfNotExists('trip_logs', 'lng', 'DECIMAL(10, 7) NULL');
 
-    // Add new columns to users table for compliance and details
+    // Add new columns to users table
     const userColumns = [
-        "ALTER TABLE users ADD COLUMN employee_id VARCHAR(50) NULL",
-        "ALTER TABLE users ADD COLUMN phone_number VARCHAR(20) NULL",
-        "ALTER TABLE users ADD COLUMN emergency_contact VARCHAR(20) NULL",
-        "ALTER TABLE users ADD COLUMN circle_zone VARCHAR(100) NULL",
-        "ALTER TABLE users ADD COLUMN blood_group VARCHAR(10) NULL",
-        "ALTER TABLE users ADD COLUMN is_active BOOLEAN DEFAULT 1",
-        "ALTER TABLE users ADD COLUMN bike_insurance_expiry DATE NULL",
-        "ALTER TABLE users ADD COLUMN bike_insurance_photo_url VARCHAR(255) NULL",
-        "ALTER TABLE users ADD COLUMN dl_expiry DATE NULL",
-        "ALTER TABLE users ADD COLUMN dl_photo_url VARCHAR(255) NULL",
-        "ALTER TABLE users ADD COLUMN helmet_photo_url VARCHAR(255) NULL",
-        "ALTER TABLE users ADD COLUMN profile_pic_url VARCHAR(255) NULL",
-        "ALTER TABLE users ADD COLUMN fcm_token VARCHAR(500) NULL",
-        "ALTER TABLE users ADD COLUMN is_deleted BOOLEAN DEFAULT 0",
-        "ALTER TABLE users ADD COLUMN delete_reason TEXT NULL"
+        { name: 'employee_id', def: 'VARCHAR(50) NULL' },
+        { name: 'phone_number', def: 'VARCHAR(20) NULL' },
+        { name: 'emergency_contact', def: 'VARCHAR(20) NULL' },
+        { name: 'circle_zone', def: 'VARCHAR(100) NULL' },
+        { name: 'blood_group', def: 'VARCHAR(10) NULL' },
+        { name: 'is_active', def: 'BOOLEAN DEFAULT 1' },
+        { name: 'bike_insurance_expiry', def: 'DATE NULL' },
+        { name: 'bike_insurance_photo_url', def: 'VARCHAR(255) NULL' },
+        { name: 'dl_expiry', def: 'DATE NULL' },
+        { name: 'dl_photo_url', def: 'VARCHAR(255) NULL' },
+        { name: 'helmet_photo_url', def: 'VARCHAR(255) NULL' },
+        { name: 'profile_pic_url', def: 'VARCHAR(255) NULL' },
+        { name: 'fcm_token', def: 'VARCHAR(500) NULL' },
+        { name: 'is_deleted', def: 'BOOLEAN DEFAULT 0' },
+        { name: 'delete_reason', def: 'TEXT NULL' }
     ];
 
-    for (const query of userColumns) {
-        try {
-            await sequelize.query(query);
-        } catch (e) {
-            // Ignore duplicate column errors
-        }
+    for (const col of userColumns) {
+        await addColumnIfNotExists('users', col.name, col.def);
     }
 
     console.log("Database connected and models synced");
