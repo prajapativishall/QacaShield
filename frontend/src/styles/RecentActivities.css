@@ -68,6 +68,11 @@
     color: #3B82F6;
 }
 
+.activity-icon.started {
+    background-color: #ECFDF5;
+    color: #10B981;
+}
+
 .activity-icon.completion {
     background-color: #F5F3FF;
     color: #8B5CF6;

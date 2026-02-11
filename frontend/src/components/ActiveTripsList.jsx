@@ -36,21 +36,31 @@ export function ActiveTripsList() {
     }
 
     const getStatusBadge = (trip) => {
-        if (trip.active || trip.current_phase === 'ACTIVE') {
-            return <span className="status-badge active">On Route</span>;
-        } else if (trip.current_phase === 'ACCEPTED') {
-             return <span className="status-badge warning">Accepted</span>;
-        } else if (trip.current_phase === 'PENDING' || trip.current_phase === 'PLANNED') {
-             return <span className="status-badge pending">Pending</span>;
-        } else {
-             return <span className="status-badge completed">Completed</span>;
+        const phase = trip.current_phase || 'PENDING';
+        
+        switch (phase) {
+            case 'ACTIVE':
+                return <span className="status-badge active">Active</span>;
+            case 'ACCEPTED':
+                return <span className="status-badge warning">Accepted</span>;
+            case 'REACHED_DESTINATION':
+                return <span className="status-badge reached">Reached Destination</span>;
+            case 'RETURNING_HOME':
+                return <span className="status-badge returning">Returning Home</span>;
+            case 'FINALIZED':
+            case 'COMPLETED':
+                return <span className="status-badge completed">Completed</span>;
+            case 'PENDING':
+            case 'PLANNED':
+            default:
+                return <span className="status-badge pending">Pending</span>;
         }
     };
 
     return (
         <div className="live-active-trips-card">
             <div className="card-header">
-                <h3>Live Active Trips</h3>
+                <h3>Live Active Assignments</h3>
             </div>
             <div className="trips-list">
                 {trips.length === 0 ? (

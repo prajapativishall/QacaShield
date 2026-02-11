@@ -11,6 +11,7 @@ export function UserManagement() {
   const [userToDelete, setUserToDelete] = useState(null);
   const [deleteReason, setDeleteReason] = useState("");
   const [editingUser, setEditingUser] = useState(null);
+  const [empIdFilter, setEmpIdFilter] = useState("");
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -292,11 +293,24 @@ export function UserManagement() {
     );
   };
 
+  const filteredUsers = users.filter(user => 
+    user.employee_id?.toString().toLowerCase().includes(empIdFilter.toLowerCase())
+  );
+
   return (
     <div className="user-management-page">
       <div className="page-header">
         <h2>User Management</h2>
-        <button className="btn-primary" onClick={handleCreate}>+ Add User</button>
+        <div style={{ display: 'flex', gap: '10px' }}>
+            <input 
+                type="text" 
+                placeholder="Search Emp ID..." 
+                value={empIdFilter}
+                onChange={(e) => setEmpIdFilter(e.target.value)}
+                style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
+            />
+            <button className="btn-primary" onClick={handleCreate}>+ Add User</button>
+        </div>
       </div>
 
       {loading ? <p>Loading...</p> : (
@@ -312,7 +326,7 @@ export function UserManagement() {
             </tr>
           </thead>
           <tbody>
-            {users.map(u => (
+            {filteredUsers.map(u => (
               <tr key={u.id} className={u.is_active === false ? "row-deactive" : ""}>
                 <td>
                   <div className="user-name">{u.name}</div>

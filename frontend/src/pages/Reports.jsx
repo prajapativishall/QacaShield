@@ -1,6 +1,61 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useAuth } from "../context/AuthContext.jsx";
 import "../styles/Reports.css";
+
+const AutocompleteInput = ({ suggestions, value, onChange, name, placeholder }) => {
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const wrapperRef = useRef(null);
+
+  const filteredSuggestions = useMemo(() => {
+    if (!value) return [];
+    return suggestions.filter(item => 
+      item.toLowerCase().includes(value.toLowerCase())
+    );
+  }, [suggestions, value]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleSelect = (suggestion) => {
+    onChange({ target: { name, value: suggestion } });
+    setShowSuggestions(false);
+  };
+
+  return (
+    <div className="autocomplete-wrapper" ref={wrapperRef}>
+      <input
+        type="text"
+        name={name}
+        value={value}
+        onChange={(e) => {
+          onChange(e);
+          setShowSuggestions(true);
+        }}
+        onFocus={() => {
+          if (value) setShowSuggestions(true);
+        }}
+        placeholder={placeholder}
+        autoComplete="off"
+      />
+      {showSuggestions && filteredSuggestions.length > 0 && (
+        <ul className="autocomplete-dropdown">
+          {filteredSuggestions.map(suggestion => (
+            <li key={suggestion} onClick={() => handleSelect(suggestion)}>
+              {suggestion}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+};
 
 export function Reports() {
   const { token, logout } = useAuth();
@@ -8,6 +63,12 @@ export function Reports() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedTrip, setSelectedTrip] = useState(null);
+  const [filters, setFilters] = useState({
+    assignmentId: '',
+    assignedTo: '',
+    assignedBy: '',
+    status: ''
+  });
 
   useEffect(() => {
     const fetchAssignments = async () => {
@@ -80,15 +141,110 @@ export function Reports() {
     return `${empPart}${minPart}${dayPart}${monthPart}${yearPart}`;
   };
 
+  const processedAssignments = useMemo(() => {
+    return assignments.map(trip => ({
+      ...trip,
+      displayId: trip.task_title || generateAssignmentId(trip),
+      displayStatus: trip.current_phase === 'FINALIZED' ? 'COMPLETED' : trip.current_phase
+    }));
+  }, [assignments]);
+
+  const uniqueAssignmentIds = useMemo(() => 
+    [...new Set(processedAssignments.map(a => a.displayId))].filter(Boolean).sort(),
+    [processedAssignments]
+  );
+
+  const uniqueAssignedTo = useMemo(() => 
+    [...new Set(processedAssignments.map(a => a.User?.name).filter(Boolean))].sort(),
+    [processedAssignments]
+  );
+
+  const uniqueAssignedBy = useMemo(() => 
+    [...new Set(processedAssignments.map(a => a.Assigner?.name).filter(Boolean))].sort(),
+    [processedAssignments]
+  );
+
+  const uniqueStatuses = useMemo(() => 
+    [...new Set(processedAssignments.map(a => a.displayStatus))].filter(Boolean).sort(),
+    [processedAssignments]
+  );
+
+  const filteredAssignments = useMemo(() => {
+    return processedAssignments.filter(trip => {
+      const id = trip.displayId.toLowerCase();
+      const to = (trip.User?.name || "").toLowerCase();
+      const by = (trip.Assigner?.name || "").toLowerCase();
+      const status = trip.displayStatus;
+
+      return (
+        (!filters.assignmentId || id.includes(filters.assignmentId.toLowerCase())) &&
+        (!filters.assignedTo || to.includes(filters.assignedTo.toLowerCase())) &&
+        (!filters.assignedBy || by.includes(filters.assignedBy.toLowerCase())) &&
+        (!filters.status || status === filters.status)
+      );
+    });
+  }, [processedAssignments, filters]);
+
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    setFilters(prev => ({ ...prev, [name]: value }));
+  };
+
   if (loading) return <div className="reports-page">Loading...</div>;
   if (error) return <div className="reports-page">Error: {error}</div>;
 
   return (
     <div className="reports-page">
       <h2>Assignments History</h2>
-      {assignments.length === 0 ? (
+
+      <div className="filters-container">
+        <div className="filter-group">
+          <label>Assignment ID</label>
+          <AutocompleteInput
+            suggestions={uniqueAssignmentIds}
+            value={filters.assignmentId}
+            onChange={handleFilterChange}
+            name="assignmentId"
+            placeholder="Search ID..."
+          />
+        </div>
+        
+        <div className="filter-group">
+            <label>Assigned To</label>
+            <AutocompleteInput
+                suggestions={uniqueAssignedTo}
+                value={filters.assignedTo}
+                onChange={handleFilterChange}
+                name="assignedTo"
+                placeholder="Search Employee..."
+            />
+        </div>
+
+        <div className="filter-group">
+            <label>Assigned By</label>
+            <AutocompleteInput
+                suggestions={uniqueAssignedBy}
+                value={filters.assignedBy}
+                onChange={handleFilterChange}
+                name="assignedBy"
+                placeholder="Search Admin/Manager..."
+            />
+        </div>
+
+        <div className="filter-group">
+            <label>Status</label>
+            <select name="status" value={filters.status} onChange={handleFilterChange}>
+                <option value="">All Statuses</option>
+                {uniqueStatuses.map(status => (
+                    <option key={status} value={status}>{status}</option>
+                ))}
+            </select>
+        </div>
+      </div>
+
+      {filteredAssignments.length === 0 ? (
         <div className="report-card">
-          <p>No assignments found.</p>
+          <p>No assignments found matching your criteria.</p>
         </div>
       ) : (
         <div className="table-container">
@@ -103,14 +259,14 @@ export function Reports() {
               </tr>
             </thead>
             <tbody>
-              {assignments.map(trip => (
+              {filteredAssignments.map(trip => (
                 <tr key={trip.id} onClick={() => handleRowClick(trip)} className="clickable-row">
-                  <td>{trip.task_title || generateAssignmentId(trip)}</td>
+                  <td>{trip.displayId}</td>
                   <td>{trip.User ? trip.User.name : "Unknown"}</td>
                   <td>{trip.Assigner ? trip.Assigner.name : "System"}</td>
                   <td>
                     <span className={`status-badge status-${trip.current_phase.toLowerCase()}`}>
-                      {trip.current_phase === 'FINALIZED' ? 'COMPLETED' : trip.current_phase}
+                      {trip.displayStatus}
                     </span>
                   </td>
                   <td>{new Date(trip.createdAt || trip.created_at).toLocaleString()}</td>

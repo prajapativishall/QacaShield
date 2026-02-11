@@ -14,7 +14,17 @@ export async function getRecentActivities(req, res) {
             include: [{ model: User, attributes: ['name'] }]
         });
 
-        // 2. Fetch recent completions (Trip Completed)
+        // 2. Fetch recent starts (Trip Started)
+        const recentStarts = await Trip.findAll({
+            where: { 
+                actual_start_time: { [Op.ne]: null } 
+            },
+            order: [['actual_start_time', 'DESC']],
+            limit: limit,
+            include: [{ model: User, attributes: ['name'] }]
+        });
+
+        // 3. Fetch recent completions (Trip Completed)
         const recentCompletions = await Trip.findAll({
             where: { 
                 current_phase: { [Op.or]: ["COMPLETED", "FINALIZED"] }, 
@@ -25,7 +35,7 @@ export async function getRecentActivities(req, res) {
             include: [{ model: User, attributes: ['name'] }]
         });
 
-        // 3. Fetch recent alerts (Logs with type 'ALERT')
+        // 4. Fetch recent alerts (Logs with type 'ALERT')
         const recentAlerts = await Log.findAll({
             where: { type: "ALERT" },
             order: [['created_at', 'DESC']],
@@ -36,7 +46,7 @@ export async function getRecentActivities(req, res) {
             }]
         });
 
-        // 4. Normalize
+        // 5. Normalize
         const activities = [];
 
         recentAssignments.forEach(trip => {
@@ -47,6 +57,18 @@ export async function getRecentActivities(req, res) {
                 title: 'New Assignment',
                 description: `Assignment ${assignmentId} assigned to ${trip.User?.name || 'Unknown'}`,
                 timestamp: trip.createdAt,
+                meta: { tripId: trip.id }
+            });
+        });
+
+        recentStarts.forEach(trip => {
+            const assignmentId = trip.task_title || `#${trip.id}`;
+            activities.push({
+                id: `start-${trip.id}`,
+                type: 'STARTED',
+                title: 'Trip Started',
+                description: `Trip ${assignmentId} started by ${trip.User?.name || 'Unknown'}`,
+                timestamp: trip.actual_start_time,
                 meta: { tripId: trip.id }
             });
         });

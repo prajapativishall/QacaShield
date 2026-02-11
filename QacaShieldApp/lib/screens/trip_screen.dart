@@ -53,6 +53,12 @@ class _TripScreenState extends State<TripScreen> {
           _currentTrip = updatedTrip;
         });
         _setupMap();
+      } else {
+        // Trip not found in active list -> likely completed
+        setState(() {
+          _currentTrip['current_phase'] = 'COMPLETED';
+          _currentTrip['active'] = false;
+        });
       }
     } catch (e) {
       print("Error refreshing trip data: $e");
@@ -384,11 +390,20 @@ class _TripScreenState extends State<TripScreen> {
     final authService = Provider.of<AuthService>(context, listen: false);
     try {
       await TripService(authService.token!).completeTrip(widget.trip['id']);
+
+      if (!mounted) return;
+
+      setState(() {
+        _currentTrip['current_phase'] = 'COMPLETED';
+        _currentTrip['active'] = false;
+      });
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Assignment Completed Successfully!")),
       );
       Navigator.pop(context); // Go back to dashboard
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Failed to complete assignment: $e")),
       );

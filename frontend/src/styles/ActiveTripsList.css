@@ -107,3 +107,18 @@
     background: #FEF3C7;
     color: #92400E;
 }
+
+.status-badge.reached {
+    background: #DBEAFE;
+    color: #1E40AF;
+}
+
+.status-badge.returning {
+    background: #F3E8FF;
+    color: #6B21A8;
+}
+
+.status-badge.completed {
+    background: #F3F4F6;
+    color: #1F2937;
+}

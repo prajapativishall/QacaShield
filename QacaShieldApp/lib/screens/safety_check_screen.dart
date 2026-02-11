@@ -258,24 +258,24 @@ class _SafetyCheckScreenState extends State<SafetyCheckScreen> {
 
       if (!mounted) return;
 
-      // 3. Navigate to TripScreen with updated state
-      final updatedTrip = Map<String, dynamic>.from(widget.trip);
-      updatedTrip['active'] = true;
       if (widget.isReturnTrip) {
-        updatedTrip['current_phase'] = 'RETURNING_HOME';
-        // Route info will be fetched by TripScreen on refresh
+        // Return Trip: Return to TripScreen and trigger refresh
+        Navigator.pop(context, true);
       } else {
+        // Start Trip: Navigate to TripScreen (Active)
+        final updatedTrip = Map<String, dynamic>.from(widget.trip);
+        updatedTrip['active'] = true;
         updatedTrip['current_phase'] = 'ACTIVE';
         if (locData != null) {
           updatedTrip['origin_lat'] = locData.latitude;
           updatedTrip['origin_lng'] = locData.longitude;
         }
-      }
 
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => TripScreen(trip: updatedTrip)),
-      );
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => TripScreen(trip: updatedTrip)),
+        );
+      }
     } catch (e) {
       String errorMessage = e.toString();
       if (errorMessage.startsWith("Exception: ")) {
