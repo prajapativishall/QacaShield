@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { API_URL } from '../apiConfig';
 import '../styles/ActiveTripsList.css'; // We'll create this or use inline for now
 
 export function ActiveTripsList() {
@@ -12,7 +13,7 @@ export function ActiveTripsList() {
 
         const fetchActiveTrips = async () => {
             try {
-                const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/trips/active`, {
+                const res = await fetch(`${API_URL}/api/trips/active`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 if (res.ok) {

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useAuth } from "../context/AuthContext.jsx";
+import { API_URL } from "../apiConfig.js";
 import "../styles/Reports.css";
 
 const AutocompleteInput = ({ suggestions, value, onChange, name, placeholder }) => {
@@ -73,7 +74,7 @@ export function Reports() {
   useEffect(() => {
     const fetchAssignments = async () => {
       try {
-        const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/trips/assigned-history`, {
+        const res = await fetch(`${API_URL}/api/trips/assigned-history`, {
           headers: {
             Authorization: `Bearer ${token}`
           }
@@ -312,7 +313,7 @@ export function Reports() {
                             <img 
                                 src={selectedTrip.helmet_image_url.startsWith('http') 
                                     ? selectedTrip.helmet_image_url 
-                                    : `${import.meta.env.VITE_BACKEND_URL}${selectedTrip.helmet_image_url}`} 
+                                    : `${API_URL}${selectedTrip.helmet_image_url}`} 
                                 alt="Helmet Check" 
                                 className="helmet-image"
                             />

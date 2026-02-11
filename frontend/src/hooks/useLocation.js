@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { API_URL } from "../apiConfig";
 
 export function useLocation(tripId) {
   useEffect(() => {
@@ -7,10 +8,7 @@ export function useLocation(tripId) {
       async (pos) => {
         const { latitude, longitude } = pos.coords;
         try {
-          const base =
-            import.meta.env.VITE_BACKEND_URL ||
-            `http://${window.location.hostname}:${import.meta.env.VITE_BACKEND_PORT || 4000}`;
-          await fetch(`${base}/api/trips/gps-ping`, {
+          await fetch(`${API_URL}/api/trips/gps-ping`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",

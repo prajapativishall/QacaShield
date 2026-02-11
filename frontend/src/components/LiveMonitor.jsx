@@ -3,6 +3,7 @@ import { MapContainer as LeafletMap, TileLayer, Marker, Popup } from "react-leaf
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { useAuth } from "../context/AuthContext.jsx";
+import { API_URL } from "../apiConfig.js";
 import "../styles/MapContainer.css"; // Reuse map styles
 
 // Fix Leaflet marker icons
@@ -30,7 +31,7 @@ export function LiveMonitor() {
 
   const fetchActiveTrips = async () => {
     try {
-      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/trips/active`, {
+      const res = await fetch(`${API_URL}/api/trips/active`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
@@ -86,7 +87,7 @@ export function LiveMonitor() {
                             </div>
                             {trip.helmet_image_url && (
                                 <img 
-                                    src={`${import.meta.env.VITE_BACKEND_URL}${trip.helmet_image_url}`} 
+                                    src={`${API_URL}${trip.helmet_image_url}`} 
                                     alt="Helmet Selfie"
                                     style={{ width: "100%", borderRadius: "8px", border: "1px solid #ddd" }}
                                 />

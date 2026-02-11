@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext.jsx";
+import { API_URL } from "../apiConfig.js";
 import { MapContainer } from "./MapContainer.jsx";
 import "../styles/TaskForm.css";
 
@@ -65,7 +66,7 @@ export function TaskForm({ selectedUser, onSuccess, onCancel }) {
     // Default ID with 00 if no user selected initially
     setFormData(prev => ({ ...prev, task_title: generateAssignmentId(null) }));
 
-    fetch(`${import.meta.env.VITE_BACKEND_URL}/api/users?role=employee`, {
+    fetch(`${API_URL}/api/users?role=employee`, {
         headers: { Authorization: `Bearer ${token}` }
     })
     .then(res => res.json())
@@ -137,7 +138,7 @@ export function TaskForm({ selectedUser, onSuccess, onCancel }) {
     setLoadingRoute(true);
     
     try {
-        const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/trips/geocode?address=${encodeURIComponent(formData.destination)}`);
+        const res = await fetch(`${API_URL}/api/trips/geocode?address=${encodeURIComponent(formData.destination)}`);
         
         if (!res.ok) throw new Error("Failed to locate address");
         
@@ -183,7 +184,7 @@ export function TaskForm({ selectedUser, onSuccess, onCancel }) {
             destination_address: formData.destination,
         };
 
-        const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/trips`, {
+        const res = await fetch(`${API_URL}/api/trips`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",

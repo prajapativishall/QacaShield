@@ -3,6 +3,7 @@ import { MapContainer as LeafletMap, TileLayer, Polyline, Marker, Popup, useMap 
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { useSocket } from "../hooks/useSocket.js";
+import { API_URL } from "../apiConfig.js";
 import "../styles/MapContainer.css";
 
 // Fix Leaflet marker icons
@@ -46,12 +47,7 @@ export function MapContainer({ viewOnly = false, routePath: propRoutePath = null
   const activeBounds = propBounds || mapBounds;
   const customMarkers = markers;
 
-  const baseUrl = useMemo(() => {
-    return (
-      import.meta.env.VITE_BACKEND_URL ||
-      `http://${window.location.hostname}:${import.meta.env.VITE_BACKEND_PORT || 4000}`
-    );
-  }, []);
+  const baseUrl = API_URL;
 
   useEffect(() => {
     socket.on("tripFinalized", () => {

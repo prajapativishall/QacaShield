@@ -1,5 +1,6 @@
 import React, { useState, useRef } from "react";
 import { useAuth } from "../../context/AuthContext.jsx";
+import { API_URL } from "../../apiConfig.js";
 import "./SafetyCheck.css";
 
 export function SafetyCheck({ tripId, onTripStarted }) {
@@ -40,7 +41,7 @@ export function SafetyCheck({ tripId, onTripStarted }) {
     formData.append("tripId", tripId);
 
     try {
-      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/safety/upload`, {
+      const res = await fetch(`${API_URL}/api/safety/upload`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`
@@ -66,7 +67,7 @@ export function SafetyCheck({ tripId, onTripStarted }) {
     if (!isVerified) return;
     
     try {
-      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/trips/start`, {
+      const res = await fetch(`${API_URL}/api/trips/start`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

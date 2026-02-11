@@ -1,10 +1,9 @@
 import { useEffect, useMemo } from "react";
 import { io } from "socket.io-client";
+import { API_URL } from "../apiConfig";
 
 export function useSocket() {
-  const url =
-    import.meta.env.VITE_BACKEND_URL ||
-    `http://${window.location.hostname}:${import.meta.env.VITE_BACKEND_PORT || 4000}`;
+  const url = API_URL;
   const socket = useMemo(() => io(url, { transports: ["websocket"] }), [url]);
   useEffect(() => {
     return () => {

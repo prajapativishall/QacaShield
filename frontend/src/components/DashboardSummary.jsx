@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useNavigate } from "react-router-dom";
+import { API_URL } from "../apiConfig.js";
 import "../styles/DashboardSummary.css";
 
 export function DashboardSummary() {
@@ -22,7 +23,7 @@ export function DashboardSummary() {
     async function fetchStats() {
       try {
         const headers = { Authorization: `Bearer ${token}` };
-        const baseUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
+        const baseUrl = API_URL;
 
         const [activeRes, alertsRes, usersRes, completedRes] = await Promise.all([
             fetch(`${baseUrl}/api/trips/active`, { headers }).catch(e => null),

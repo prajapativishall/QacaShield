@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext.jsx";
+import { API_URL } from "../apiConfig.js";
 import "../styles/UserManagement.css";
 
 export function UserManagement() {
@@ -39,7 +40,7 @@ export function UserManagement() {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/users`, {
+      const res = await fetch(`${API_URL}/api/users`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
@@ -57,7 +58,7 @@ export function UserManagement() {
 
   const toggleStatus = async (user) => {
     try {
-        const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/users/${user.id}`, {
+        const res = await fetch(`${API_URL}/api/users/${user.id}`, {
             method: 'PUT',
             headers: { 
                 'Content-Type': 'application/json',
@@ -86,7 +87,7 @@ export function UserManagement() {
   const confirmDelete = async () => {
     if (!userToDelete) return;
     try {
-      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/users/${userToDelete.id}`, {
+      const res = await fetch(`${API_URL}/api/users/${userToDelete.id}`, {
         method: "DELETE",
         headers: { 
             "Content-Type": "application/json",
@@ -159,8 +160,8 @@ export function UserManagement() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const url = editingUser 
-      ? `${import.meta.env.VITE_BACKEND_URL}/api/users/${editingUser.id}`
-      : `${import.meta.env.VITE_BACKEND_URL}/api/users`;
+      ? `${API_URL}/api/users/${editingUser.id}`
+      : `${API_URL}/api/users`;
     
     const method = editingUser ? "PUT" : "POST";
 
@@ -221,7 +222,7 @@ export function UserManagement() {
     uploadData.append("file", file);
 
     try {
-      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/users/upload`, {
+      const res = await fetch(`${API_URL}/api/users/upload`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: uploadData
@@ -282,7 +283,7 @@ export function UserManagement() {
     
     return (
         <a 
-            href={photoUrl ? `${import.meta.env.VITE_BACKEND_URL}${photoUrl}` : '#'} 
+            href={photoUrl ? `${API_URL}${photoUrl}` : '#'} 
             target="_blank" 
             rel="noopener noreferrer"
             style={{ textDecoration: 'none', cursor: photoUrl ? 'pointer' : 'default' }}
@@ -409,7 +410,7 @@ export function UserManagement() {
                             <input type="file" accept="image/*" onChange={(e) => handleFileUpload(e, 'profile_pic_url')} />
                             {formData.profile_pic_url && (
                                 <small style={{ color: '#10B981' }}>
-                                    <a href={`${import.meta.env.VITE_BACKEND_URL}${formData.profile_pic_url}`} target="_blank" rel="noopener noreferrer">View Uploaded</a>
+                                    <a href={`${API_URL}${formData.profile_pic_url}`} target="_blank" rel="noopener noreferrer">View Uploaded</a>
                                 </small>
                             )}
                         </div>
@@ -474,7 +475,7 @@ export function UserManagement() {
                         <input type="file" accept="image/*" onChange={(e) => handleFileUpload(e, 'bike_insurance_photo_url')} />
                         {formData.bike_insurance_photo_url && (
                             <small style={{ color: '#10B981', display: 'block', marginTop: '4px' }}>
-                                <a href={`${import.meta.env.VITE_BACKEND_URL}${formData.bike_insurance_photo_url}`} target="_blank" rel="noopener noreferrer">View Uploaded</a>
+                                <a href={`${API_URL}${formData.bike_insurance_photo_url}`} target="_blank" rel="noopener noreferrer">View Uploaded</a>
                             </small>
                         )}
                     </div>
@@ -491,7 +492,7 @@ export function UserManagement() {
                         <input type="file" accept="image/*" onChange={(e) => handleFileUpload(e, 'dl_photo_url')} />
                         {formData.dl_photo_url && (
                             <small style={{ color: '#10B981', display: 'block', marginTop: '4px' }}>
-                                <a href={`${import.meta.env.VITE_BACKEND_URL}${formData.dl_photo_url}`} target="_blank" rel="noopener noreferrer">View Uploaded</a>
+                                <a href={`${API_URL}${formData.dl_photo_url}`} target="_blank" rel="noopener noreferrer">View Uploaded</a>
                             </small>
                         )}
                     </div>
@@ -505,7 +506,7 @@ export function UserManagement() {
                             <input type="file" accept="image/*" onChange={(e) => handleFileUpload(e, 'helmet_photo_url')} />
                             {formData.helmet_photo_url && (
                                 <small style={{ color: '#10B981' }}>
-                                    <a href={`${import.meta.env.VITE_BACKEND_URL}${formData.helmet_photo_url}`} target="_blank" rel="noopener noreferrer">View Uploaded</a>
+                                    <a href={`${API_URL}${formData.helmet_photo_url}`} target="_blank" rel="noopener noreferrer">View Uploaded</a>
                                 </small>
                             )}
                         </div>

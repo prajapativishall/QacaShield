@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useNavigate } from "react-router-dom";
+import { API_URL } from "../apiConfig.js";
 import "../styles/Login.css";
 
 export function Login() {
@@ -15,7 +16,7 @@ export function Login() {
     setError("");
 
     try {
-      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/auth/login`, {
+      const res = await fetch(`${API_URL}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ employee_id: employeeId, password }),

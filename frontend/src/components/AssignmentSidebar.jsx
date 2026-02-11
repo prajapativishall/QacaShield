@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext.jsx";
+import { API_URL } from "../apiConfig.js";
 import { TaskForm } from "./TaskForm.jsx";
 import "../styles/AssignmentSidebar.css";
 
@@ -16,7 +17,7 @@ export function AssignmentSidebar({ isOpen, onClose }) {
 
   const fetchEmployees = async () => {
     try {
-      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/users?role=employee`, {
+      const res = await fetch(`${API_URL}/api/users?role=employee`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();

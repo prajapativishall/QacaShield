@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { API_URL } from '../apiConfig';
 import '../styles/RecentActivities.css';
 
 export function RecentActivities() {
@@ -12,7 +13,7 @@ export function RecentActivities() {
 
         const fetchActivities = async () => {
             try {
-                const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/dashboard/activities`, {
+                const res = await fetch(`${API_URL}/api/dashboard/activities`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 if (res.ok) {

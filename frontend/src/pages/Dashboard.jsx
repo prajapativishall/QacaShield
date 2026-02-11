@@ -7,6 +7,7 @@ import { AssignmentSidebar } from "../components/AssignmentSidebar.jsx";
 import { SafetyCheck } from "../components/SafetyCheck/SafetyCheck.jsx";
 import { MapContainer } from "../components/MapContainer.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
+import { API_URL } from "../apiConfig.js";
 import "../styles/Dashboard.css";
 
 export function Dashboard() {
@@ -25,7 +26,7 @@ export function Dashboard() {
   const fetchCurrentTrip = async () => {
     setLoadingTrip(true);
     try {
-      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/trips/my-trips`, {
+      const res = await fetch(`${API_URL}/api/trips/my-trips`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
