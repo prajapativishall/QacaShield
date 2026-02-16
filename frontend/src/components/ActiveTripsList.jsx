@@ -33,7 +33,7 @@ export function ActiveTripsList() {
     }, [token]);
 
     if (loading) {
-        return <div className="active-trips-loading">Loading active trips...</div>;
+        return <div className="active-trips-loading">Loading active assignments...</div>;
     }
 
     const getStatusBadge = (trip) => {
@@ -72,7 +72,7 @@ export function ActiveTripsList() {
                                 <polyline points="12 6 12 12 16 14"/>
                             </svg>
                         </div>
-                        <p>No trips are currently in progress.</p>
+                        <p>No assignments are currently in progress.</p>
                     </div>
                 ) : (
                     <div className="trips-table-container">

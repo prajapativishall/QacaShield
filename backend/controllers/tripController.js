@@ -154,16 +154,16 @@ export async function acceptTrip(req, res) {
     if (!tripId) return res.status(400).json({ error: "Missing tripId" });
 
     const trip = await Trip.findByPk(tripId);
-    if (!trip) return res.status(404).json({ error: "Trip not found" });
+    if (!trip) return res.status(404).json({ error: "Assignment not found" });
 
     if (trip.current_phase !== "PENDING" && trip.current_phase !== "PLANNED") {
-      return res.status(400).json({ error: "Trip is not pending acceptance" });
+      return res.status(400).json({ error: "Assignment is not pending acceptance" });
     }
 
     trip.current_phase = "ACCEPTED";
     await trip.save();
 
-    res.json({ ok: true, message: "Trip accepted successfully" });
+    res.json({ ok: true, message: "Assignment accepted successfully" });
   } catch (error) {
     console.error("Error accepting trip:", error);
     res.status(500).json({ error: "Failed to accept trip" });
@@ -176,10 +176,10 @@ export async function startTrip(req, res) {
     if (!tripId) return res.status(400).json({ error: "Missing tripId" });
 
     const trip = await Trip.findByPk(tripId);
-    if (!trip) return res.status(404).json({ error: "Trip not found" });
+    if (!trip) return res.status(404).json({ error: "Assignment not found" });
 
     if (trip.current_phase === "ACTIVE") {
-      return res.json({ message: "Trip already active", ok: true });
+      return res.json({ message: "Assignment already active", ok: true });
     }
 
     // Safety Check Enforcement
@@ -208,7 +208,7 @@ export async function startTrip(req, res) {
     trip.actual_start_time = new Date();
     await trip.save();
 
-    res.json({ ok: true, message: "Trip started successfully" });
+    res.json({ ok: true, message: "Assignment started successfully" });
   } catch (error) {
     console.error("Error starting trip:", error);
     res.status(500).json({ error: "Failed to start trip" });
@@ -221,14 +221,14 @@ export async function completeTrip(req, res) {
     if (!tripId) return res.status(400).json({ error: "Missing tripId" });
 
     const trip = await Trip.findByPk(tripId);
-    if (!trip) return res.status(404).json({ error: "Trip not found" });
+    if (!trip) return res.status(404).json({ error: "Assignment not found" });
 
     if (trip.current_phase === "COMPLETED" || trip.current_phase === "FINALIZED") {
-      return res.json({ ok: true, message: "Trip already completed" });
+      return res.json({ ok: true, message: "Assignment already completed" });
     }
 
     if (trip.current_phase !== "RETURNING_HOME") {
-      return res.status(400).json({ error: "Trip must be in 'RETURNING_HOME' phase to complete." });
+      return res.status(400).json({ error: "Assignment must be in 'RETURNING_HOME' phase to complete." });
     }
 
     trip.current_phase = "COMPLETED";
@@ -236,7 +236,7 @@ export async function completeTrip(req, res) {
     trip.actual_end_time = new Date();
     await trip.save();
 
-    res.json({ ok: true, message: "Trip completed successfully" });
+    res.json({ ok: true, message: "Assignment completed successfully" });
   } catch (error) {
     console.error("Error completing trip:", error);
     res.status(500).json({ error: "Failed to complete trip" });
@@ -247,10 +247,10 @@ export async function reachDestination(req, res) {
   try {
     const { tripId } = req.body;
     const trip = await Trip.findByPk(tripId);
-    if (!trip) return res.status(404).json({ error: "Trip not found" });
+    if (!trip) return res.status(404).json({ error: "Assignment not found" });
 
     if (trip.current_phase !== "ACTIVE") {
-      return res.status(400).json({ error: "Trip must be ACTIVE to reach destination" });
+      return res.status(400).json({ error: "Assignment must be ACTIVE to reach destination" });
     }
 
     trip.current_phase = "REACHED_DESTINATION";

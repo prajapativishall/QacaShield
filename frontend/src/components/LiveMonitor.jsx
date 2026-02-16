@@ -69,7 +69,7 @@ export function LiveMonitor() {
                 >
                   <Popup>
                     <div style={{ minWidth: "200px" }}>
-                      <h3>Trip #{trip.id}</h3>
+                      <h3>Assignment #{trip.id}</h3>
                       <p><strong>Driver:</strong> {trip.User?.name || "Unknown"}</p>
                       <p><strong>Status:</strong> {trip.current_phase}</p>
                       {trip.is_safety_verified ? (
@@ -122,11 +122,11 @@ export function LiveMonitor() {
           width: "250px"
       }}>
           <h3>Active Fleet ({activeTrips.length})</h3>
-          {activeTrips.length === 0 ? <p>No active trips</p> : (
+          {activeTrips.length === 0 ? <p>No active assignments</p> : (
               <ul style={{ listStyle: "none", padding: 0 }}>
                   {activeTrips.map(trip => (
                       <li key={trip.id} style={{ marginBottom: "10px", borderBottom: "1px solid #eee", paddingBottom: "10px" }}>
-                          <strong>{trip.User?.name || `Trip #${trip.id}`}</strong>
+                          <strong>{trip.User?.name || `Assignment #${trip.id}`}</strong>
                           <br/>
                           <small>{trip.current_phase}</small>
                       </li>

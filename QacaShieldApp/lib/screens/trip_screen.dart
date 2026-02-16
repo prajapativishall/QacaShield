@@ -579,7 +579,7 @@ class _TripScreenState extends State<TripScreen> {
       await TripService(authService.token!).acceptTrip(widget.trip['id']);
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text("Assignment Accepted!")));
+      ).showSnackBar(SnackBar(content: Text("Assignment accepted!")));
       _refreshTripData(); // Refresh to update UI to ACCEPTED state
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(

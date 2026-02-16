@@ -37,7 +37,7 @@ export function Dashboard() {
         }
       }
     } catch (err) {
-      console.error("Error fetching trips", err);
+      console.error("Error fetching assignments", err);
     } finally {
       setLoadingTrip(false);
     }
@@ -157,22 +157,22 @@ export function Dashboard() {
                </button>
            </div>
            {loadingTrip ? (
-             <p>Loading trip status...</p>
+             <p>Loading assignment status...</p>
            ) : currentTrip ? (
              <>
                {(!currentTrip.is_safety_verified || currentTrip.current_phase === "PLANNED") ? (
                  <SafetyCheck tripId={currentTrip.id} onTripStarted={handleTripStarted} />
                ) : (
                  <div style={{ height: "80vh" }}>
-                    <h2>Trip #{currentTrip.id} - Active</h2>
+                    <h2>Assignment #{currentTrip.id} - Active</h2>
                     <MapContainer viewOnly={false} /> 
                  </div>
                )}
              </>
            ) : (
              <div style={{ textAlign: "center", padding: "50px" }}>
-               <h2>No Active Trips</h2>
-               <p>You have no assigned trips at the moment.</p>
+               <h2>No Active Assignments</h2>
+               <p>You have no active assignments at the moment.</p>
              </div>
            )}
         </div>

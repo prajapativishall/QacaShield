@@ -94,7 +94,7 @@ export function SafetyCheck({ tripId, onTripStarted }) {
     <div className="safety-check-container">
       <div className="safety-header">
         <h2>🛡️ Safety Gateway</h2>
-        <p>Complete the safety check to unlock your trip.</p>
+        <p>Complete the safety check to unlock your assignment.</p>
       </div>
 
       <div className="checklist-group">
@@ -176,7 +176,7 @@ export function SafetyCheck({ tripId, onTripStarted }) {
         disabled={!allChecksPassed}
         onClick={handleStartTrip}
       >
-        {allChecksPassed ? "🚀 Start Trip" : "🔒 Complete Safety Check to Start"}
+        {allChecksPassed ? "🚀 Start Assignment" : "🔒 Complete Safety Check to Start"}
       </button>
     </div>
   );

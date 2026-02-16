@@ -94,9 +94,8 @@ export function DashboardSummary() {
   return (
     <>
     <div className="stats-row">
-        {/* Active Trips Card */}
         <div className="stat-card active-trips-card">
-          <div className="stat-header">Active Trips</div>
+          <div className="stat-header">Active Assignments</div>
           <div className="stat-content">
             <div className="stat-icon-wrapper blue-icon">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -120,9 +119,8 @@ export function DashboardSummary() {
           </div>
         </div>
 
-        {/* Completed Trips Card */}
         <div className="stat-card completed-trips-card">
-          <div className="stat-header">Completed Trips</div>
+          <div className="stat-header">Completed Assignments</div>
           <div className="stat-content">
              <div className="stat-icon-wrapper">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -162,7 +160,7 @@ export function DashboardSummary() {
                             <div key={alert.id} className="alert-item">
                                 <div className="alert-item-header">
                                     <span>
-                                        Trip #{alert.trip_id} 
+                                        Assignment #{alert.trip_id} 
                                         {alert.Trip?.User?.name ? ` - ${alert.Trip.User.name}` : ''}
                                     </span>
                                     <span>{new Date(alert.createdAt || alert.created_at).toLocaleTimeString()}</span>

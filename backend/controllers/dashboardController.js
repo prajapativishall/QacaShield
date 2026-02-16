@@ -7,14 +7,14 @@ export async function getRecentActivities(req, res) {
     try {
         const limit = 10;
 
-        // 1. Fetch recent assignments (Trip Created)
+        // 1. Fetch recent assignments (Assignment Created)
         const recentAssignments = await Trip.findAll({
             order: [['created_at', 'DESC']],
             limit: limit,
             include: [{ model: User, attributes: ['name'] }]
         });
 
-        // 2. Fetch recent starts (Trip Started)
+        // 2. Fetch recent starts (Assignment Started)
         const recentStarts = await Trip.findAll({
             where: { 
                 actual_start_time: { [Op.ne]: null } 
@@ -24,7 +24,7 @@ export async function getRecentActivities(req, res) {
             include: [{ model: User, attributes: ['name'] }]
         });
 
-        // 3. Fetch recent completions (Trip Completed)
+        // 3. Fetch recent completions (Assignment Completed)
         const recentCompletions = await Trip.findAll({
             where: { 
                 current_phase: { [Op.or]: ["COMPLETED", "FINALIZED"] }, 
@@ -66,8 +66,8 @@ export async function getRecentActivities(req, res) {
             activities.push({
                 id: `start-${trip.id}`,
                 type: 'STARTED',
-                title: 'Trip Started',
-                description: `Trip ${assignmentId} started by ${trip.User?.name || 'Unknown'}`,
+                title: 'Assignment Started',
+                description: `Assignment ${assignmentId} started by ${trip.User?.name || 'Unknown'}`,
                 timestamp: trip.actual_start_time,
                 meta: { tripId: trip.id }
             });
