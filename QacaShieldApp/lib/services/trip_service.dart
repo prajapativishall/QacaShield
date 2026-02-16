@@ -209,4 +209,19 @@ class TripService {
       throw Exception('Failed to start return trip: ${response.body}');
     }
   }
+
+  Future<Map<String, dynamic>> fetchOfflineSync(int tripId) async {
+    final url =
+        Uri.parse('${AppConstants.baseUrl}/trips/offline-sync?tripId=$tripId');
+    final response = await http.get(
+      url,
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    if (response.statusCode == 200) {
+      return json.decode(response.body) as Map<String, dynamic>;
+    } else {
+      throw Exception(
+          'Failed to load offline route: ${response.statusCode} ${response.body}');
+    }
+  }
 }

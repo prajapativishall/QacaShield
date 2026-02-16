@@ -23,6 +23,9 @@ export function TaskForm({ selectedUser, onSuccess, onCancel }) {
   const [routeData, setRouteData] = useState(null); 
   const [showMapPreview, setShowMapPreview] = useState(false);
   const [loadingRoute, setLoadingRoute] = useState(false);
+  const [destinationSuggestions, setDestinationSuggestions] = useState([]);
+  const [showDestinationSuggestions, setShowDestinationSuggestions] = useState(false);
+  const [destinationLoading, setDestinationLoading] = useState(false);
   
   // Compliance State
   const [complianceStatus, setComplianceStatus] = useState({ valid: true, errors: [] });
@@ -131,6 +134,71 @@ export function TaskForm({ selectedUser, onSuccess, onCancel }) {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  useEffect(() => {
+    const query = formData.destination.trim();
+    if (!query || query.length < 3) {
+      setDestinationSuggestions([]);
+      setShowDestinationSuggestions(false);
+      return;
+    }
+    let cancelled = false;
+    setDestinationLoading(true);
+    const timeoutId = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `${API_URL}/api/trips/geocode-suggestions?address=${encodeURIComponent(
+            query
+          )}`
+        );
+        if (!res.ok) {
+          throw new Error("Failed to fetch suggestions");
+        }
+        const data = await res.json();
+        if (cancelled) {
+          return;
+        }
+        const list = Array.isArray(data) ? data : [];
+        setDestinationSuggestions(list);
+        setShowDestinationSuggestions(list.length > 0);
+      } catch (err) {
+        if (!cancelled) {
+          setDestinationSuggestions([]);
+          setShowDestinationSuggestions(false);
+        }
+      } finally {
+        if (!cancelled) {
+          setDestinationLoading(false);
+        }
+      }
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+    };
+  }, [formData.destination]);
+
+  const handleDestinationSelect = (item) => {
+    const destCoords = {
+      lat: parseFloat(item.lat),
+      lng: parseFloat(item.lon)
+    };
+    setFormData(prev => ({
+      ...prev,
+      destination: item.display_name || prev.destination
+    }));
+    setRouteData({
+      path: [],
+      polyline: null,
+      bounds: [
+        [destCoords.lat, destCoords.lng],
+        [destCoords.lat, destCoords.lng]
+      ],
+      destCoords
+    });
+    setDestinationSuggestions([]);
+    setShowDestinationSuggestions(false);
   };
 
   const handlePreview = async () => {
@@ -301,6 +369,26 @@ export function TaskForm({ selectedUser, onSuccess, onCancel }) {
                     <svg className="input-icon right-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
                     </svg>
+                    {destinationLoading && (
+                      <div className="destination-suggestions">
+                        <div className="destination-suggestion-item">
+                          Searching...
+                        </div>
+                      </div>
+                    )}
+                    {!destinationLoading && showDestinationSuggestions && destinationSuggestions.length > 0 && (
+                      <div className="destination-suggestions">
+                        {destinationSuggestions.map((item, index) => (
+                          <div
+                            key={index}
+                            className="destination-suggestion-item"
+                            onMouseDown={() => handleDestinationSelect(item)}
+                          >
+                            {item.display_name || formData.destination}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                 </div>
             </div>
 

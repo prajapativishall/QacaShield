@@ -44,6 +44,31 @@
   align-items: center;
 }
 
+.destination-suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-top: none;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 50;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.06);
+}
+
+.destination-suggestion-item {
+  padding: 8px 12px;
+  font-size: 0.9rem;
+  color: #374151;
+  cursor: pointer;
+}
+
+.destination-suggestion-item:hover {
+  background-color: #f3f4f6;
+}
+
 .form-group input,
 .form-group select {
   width: 100%;

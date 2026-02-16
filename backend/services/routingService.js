@@ -36,6 +36,86 @@ export async function geocodeAddress(query) {
     return await geocodeNominatim(query);
 }
 
+export async function geocodeSuggestions(query) {
+    const headers = { "User-Agent": "QacaShield-Dev/1.0" };
+    const base = "https://nominatim.openstreetmap.org/search";
+    const trimmed = query.trim();
+    if (!trimmed) {
+        return [];
+    }
+
+    const tokens = trimmed.split(/\s+/);
+    let numericPart = null;
+    let cityName = null;
+
+    for (const t of tokens) {
+        const lowerToken = t.toLowerCase();
+        if (!numericPart && /^(\d{1,3})$/.test(t)) {
+            numericPart = t;
+        }
+        if (!cityName) {
+            if (lowerToken === "noida") {
+                cityName = "Noida";
+            } else if (lowerToken === "delhi") {
+                cityName = "Delhi";
+            }
+        }
+    }
+
+    const urls = [];
+    const addUrl = (url) => {
+        if (!urls.includes(url)) {
+            urls.push(url);
+        }
+    };
+
+    if (cityName && numericPart && cityName === "Noida") {
+        const sector = numericPart;
+        const structured = `${base}?street=${encodeURIComponent("Sector " + sector)}&city=${encodeURIComponent("Noida")}&state=${encodeURIComponent("Uttar Pradesh")}&country=${encodeURIComponent("India")}&format=json&limit=5&addressdetails=1&countrycodes=in&accept-language=en`;
+        addUrl(structured);
+
+        const alt1 = `${base}?q=${encodeURIComponent("Sector " + sector + ", Noida, Uttar Pradesh, India")}&format=json&limit=5&addressdetails=1&countrycodes=in&accept-language=en`;
+        const alt2 = `${base}?q=${encodeURIComponent("Noida Sector " + sector + ", Uttar Pradesh, India")}&format=json&limit=5&addressdetails=1&countrycodes=in&accept-language=en`;
+        const alt3 = `${base}?q=${encodeURIComponent("Sector " + sector + ", Noida")}&format=json&limit=5&addressdetails=1&countrycodes=in&accept-language=en`;
+        addUrl(alt1);
+        addUrl(alt2);
+        addUrl(alt3);
+    }
+
+    const generic1 = `${base}?q=${encodeURIComponent(trimmed)}&format=json&limit=5&addressdetails=1&countrycodes=in&accept-language=en`;
+    const generic2 = `${base}?q=${encodeURIComponent(trimmed + ", India")}&format=json&limit=5&addressdetails=1&countrycodes=in&accept-language=en`;
+    addUrl(generic1);
+    addUrl(generic2);
+
+    const results = [];
+    const seenCoords = new Set();
+
+    for (const url of urls) {
+        const data = await httpGetJson(url, headers);
+        if (Array.isArray(data)) {
+            for (const item of data) {
+                const key = `${item.lat},${item.lon}`;
+                if (!seenCoords.has(key)) {
+                    seenCoords.add(key);
+                    results.push(item);
+                    if (results.length >= 10) {
+                        break;
+                    }
+                }
+            }
+        }
+        if (results.length >= 10) {
+            break;
+        }
+    }
+
+    return results.map((item) => ({
+        lat: item.lat,
+        lon: item.lon,
+        display_name: item.display_name
+    }));
+}
+
 export async function getRouteFromCoords(originLat, originLng, destLat, destLng) {
     try {
         const start = { lat: originLat, lon: originLng };

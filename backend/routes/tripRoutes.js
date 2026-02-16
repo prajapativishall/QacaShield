@@ -15,7 +15,8 @@ import {
   listActiveTrips,
   getAssignedTripsHistory,
   getCompletedTripsCount,
-  geocode
+  geocode,
+  geocodeSuggestionsHandler
 } from "../controllers/tripController.js";
 import { createAlert, getAlerts } from "../controllers/alertController.js";
 import { logManagerView } from "../services/auditService.js";
@@ -34,6 +35,7 @@ router.post("/return-home", requireRole(["USER", "MANAGER", "ADMIN"]), startRetu
 router.post("/complete", requireRole(["USER", "MANAGER", "ADMIN"]), completeTrip);
 router.get("/best-route", bestRoute);
 router.get("/geocode", geocode);
+router.get("/geocode-suggestions", geocodeSuggestionsHandler);
 router.get("/offline-sync", offlineSync);
 router.post("/gps-ping", privacyGuard, updateGpsPing);
 router.post("/alert", createAlert);

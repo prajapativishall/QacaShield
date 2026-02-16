@@ -1,6 +1,6 @@
 import { Trip } from "../models/Trip.js";
 import { User } from "../models/User.js";
-import { fetchBestRoutePolyline, getRouteFromCoords, geocodeAddress } from "../services/routingService.js";
+import { fetchBestRoutePolyline, getRouteFromCoords, geocodeAddress, geocodeSuggestions } from "../services/routingService.js";
 import { sendPushNotification } from "../services/notificationService.js";
 import { Op } from "sequelize";
 
@@ -303,6 +303,18 @@ export async function geocode(req, res) {
     const coords = await geocodeAddress(address);
     if (!coords) return res.status(404).json({ error: "Address not found" });
     res.json(coords);
+}
+
+export async function geocodeSuggestionsHandler(req, res) {
+    try {
+        const { address } = req.query;
+        if (!address) return res.status(400).json({ error: "Missing address" });
+        const results = await geocodeSuggestions(address);
+        res.json(results);
+    } catch (error) {
+        console.error("Error fetching geocode suggestions:", error);
+        res.status(500).json({ error: "Failed to fetch address suggestions" });
+    }
 }
 
 export async function bestRoute(req, res) {

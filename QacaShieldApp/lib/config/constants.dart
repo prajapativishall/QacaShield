@@ -11,7 +11,7 @@ class AppConstants {
       return 'http://127.0.0.1:4000/api';
     } else if (defaultTargetPlatform == TargetPlatform.android) {
       // return 'http://10.0.2.2:4000/api'; // Use this for Emulator
-      return 'http://172.20.10.3:4000/api'; // Use this for Physical Device (Your LAN IP)
+      return 'http://14.56.225.22:4000/api'; // Use this for Physical Device (Your LAN IP)
     } else {
       return 'http://127.0.0.1:4000/api'; // iOS Simulator or fallback
     }

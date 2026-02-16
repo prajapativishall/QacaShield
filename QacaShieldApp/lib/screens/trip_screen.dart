@@ -1,9 +1,12 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:location/location.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/auth_service.dart';
 import '../services/trip_service.dart';
 import '../config/constants.dart';
@@ -29,11 +32,14 @@ class _TripScreenState extends State<TripScreen> {
 
   Map<String, dynamic> _currentTrip = {};
   bool _isNavigationMode = true; // Auto-follow by default like Uber/Ola
+  static const String _cachePrefix = 'trip_cache_';
+  static const double _homeGeofenceRadiusMeters = 100.0;
 
   @override
   void initState() {
     super.initState();
     _currentTrip = widget.trip;
+    _loadCachedRoute();
     _refreshTripData();
     _setupMap();
     _startTracking();
@@ -42,15 +48,34 @@ class _TripScreenState extends State<TripScreen> {
   Future<void> _refreshTripData() async {
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
-      final trips = await TripService(authService.token!).fetchMyTrips();
+      final tripService = TripService(authService.token!);
+      final trips = await tripService.fetchMyTrips();
       final updatedTrip = trips.firstWhere(
         (t) => t['id'] == widget.trip['id'],
         orElse: () => null,
       );
 
       if (updatedTrip != null) {
+        Map<String, dynamic> merged = Map<String, dynamic>.from(updatedTrip);
+        try {
+          if (merged['route_polyline'] == null) {
+            final offline = await tripService.fetchOfflineSync(
+              widget.trip['id'],
+            );
+            if (offline['route_polyline'] != null) {
+              merged['route_polyline'] = offline['route_polyline'];
+            }
+            if (offline['home_coordinates'] != null) {
+              final coords = offline['home_coordinates'];
+              merged['home_lat'] = coords['lat'];
+              merged['home_lng'] = coords['lng'];
+            }
+          }
+        } catch (e) {
+          print("Offline sync failed: $e");
+        }
         setState(() {
-          _currentTrip = updatedTrip;
+          _currentTrip = merged;
         });
         _setupMap();
       } else {
@@ -76,6 +101,55 @@ class _TripScreenState extends State<TripScreen> {
     if (value is String) return double.tryParse(value) ?? 0.0;
     if (value is int) return value.toDouble();
     return 0.0;
+  }
+
+  Future<void> _loadCachedRoute() async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = '$_cachePrefix${widget.trip['id']}';
+    final cached = prefs.getString(key);
+    if (cached == null) return;
+    final data = json.decode(cached) as Map<String, dynamic>;
+    final polyline = data['route_polyline'] as String?;
+    if (polyline != null && polyline.isNotEmpty) {
+      final points = _decodePolyline(polyline);
+      if (points.isNotEmpty) {
+        setState(() {
+          _routePoints = points;
+        });
+      }
+    }
+    final homeLat = data['home_lat'];
+    final homeLng = data['home_lng'];
+    if (homeLat != null && homeLng != null) {
+      if (_currentTrip['home_lat'] == null &&
+          _currentTrip['home_lng'] == null) {
+        _currentTrip['home_lat'] = homeLat;
+        _currentTrip['home_lng'] = homeLng;
+      }
+    }
+  }
+
+  Future<void> _cacheRouteData() async {
+    final routePolyline = _currentTrip['route_polyline'];
+    if (routePolyline == null ||
+        routePolyline is! String ||
+        routePolyline.isEmpty) {
+      return;
+    }
+    final prefs = await SharedPreferences.getInstance();
+    final key = '$_cachePrefix${widget.trip['id']}';
+    final data = <String, dynamic>{
+      'route_polyline': routePolyline,
+      'home_lat': _currentTrip['home_lat'],
+      'home_lng': _currentTrip['home_lng'],
+    };
+    await prefs.setString(key, json.encode(data));
+  }
+
+  Future<void> _clearRouteCache() async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = '$_cachePrefix${widget.trip['id']}';
+    await prefs.remove(key);
   }
 
   Future<void> _setupMap() async {
@@ -142,6 +216,7 @@ class _TripScreenState extends State<TripScreen> {
           );
         });
       }
+      await _cacheRouteData();
     } else {
       // If no route yet (Planned phase), just show destination marker if available
       double? dLat = _toDouble(_currentTrip['dest_lat']);
@@ -226,6 +301,47 @@ class _TripScreenState extends State<TripScreen> {
     return points;
   }
 
+  double _distanceInMeters(LatLng a, LatLng b) {
+    final dLat = _degToRad(b.latitude - a.latitude);
+    final dLng = _degToRad(b.longitude - a.longitude);
+    final lat1 = _degToRad(a.latitude);
+    final lat2 = _degToRad(b.latitude);
+    final sinDLat = math.sin(dLat / 2);
+    final sinDLng = math.sin(dLng / 2);
+    final aVal =
+        sinDLat * sinDLat + sinDLng * sinDLng * math.cos(lat1) * math.cos(lat2);
+    final c = 2 * math.atan2(math.sqrt(aVal), math.sqrt(1 - aVal));
+    const earthRadius = 6371000.0;
+    return earthRadius * c;
+  }
+
+  double _degToRad(double value) {
+    return value * (math.pi / 180.0);
+  }
+
+  Future<void> _checkGeofenceAndComplete(LocationData currentLocation) async {
+    if (_currentTrip['current_phase'] != 'RETURNING_HOME') {
+      return;
+    }
+    if (currentLocation.latitude == null || currentLocation.longitude == null) {
+      return;
+    }
+    final current = LatLng(
+      currentLocation.latitude!,
+      currentLocation.longitude!,
+    );
+    final homeLatVal = _toDouble(_currentTrip['home_lat']);
+    final homeLngVal = _toDouble(_currentTrip['home_lng']);
+    if (homeLatVal == 0.0 && homeLngVal == 0.0) {
+      return;
+    }
+    final home = LatLng(homeLatVal, homeLngVal);
+    final distance = _distanceInMeters(current, home);
+    if (distance <= _homeGeofenceRadiusMeters) {
+      await _completeTrip();
+    }
+  }
+
   Future<void> _startTracking() async {
     bool _serviceEnabled;
     PermissionStatus _permissionGranted;
@@ -276,7 +392,6 @@ class _TripScreenState extends State<TripScreen> {
           );
         });
 
-        // Send update to backend
         tripService
             .sendGpsPing(
               widget.trip['id'],
@@ -285,14 +400,15 @@ class _TripScreenState extends State<TripScreen> {
             )
             .catchError((e) => print("Ping failed: $e"));
 
-        // Auto-center and rotate if in navigation mode
         if (_isNavigationMode) {
           _mapController.moveAndRotate(
             _currentLocation!,
-            18.0, // Zoom level for navigation
-            currentLocation.heading ?? 0.0, // Rotate map
+            18.0,
+            currentLocation.heading ?? 0.0,
           );
         }
+
+        _checkGeofenceAndComplete(currentLocation);
       }
     });
   }
@@ -392,6 +508,10 @@ class _TripScreenState extends State<TripScreen> {
       await TripService(authService.token!).completeTrip(widget.trip['id']);
 
       if (!mounted) return;
+
+      _locationSubscription?.cancel();
+      await _location.enableBackgroundMode(enable: false);
+      await _clearRouteCache();
 
       setState(() {
         _currentTrip['current_phase'] = 'COMPLETED';
@@ -506,6 +626,18 @@ class _TripScreenState extends State<TripScreen> {
         SnackBar(content: Text("Failed to accept assignment: $e")),
       );
     }
+  }
+
+  Future<void> _exitTracking() async {
+    _locationSubscription?.cancel();
+    await _location.enableBackgroundMode(enable: false);
+    await _clearRouteCache();
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Tracking exited and route cleared")),
+    );
   }
 
   @override
@@ -871,6 +1003,28 @@ class _TripScreenState extends State<TripScreen> {
                                   ),
                                 ),
                             ],
+                          ),
+                        if (_currentTrip['active'])
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton(
+                              onPressed: _exitTracking,
+                              style: OutlinedButton.styleFrom(
+                                padding: EdgeInsets.symmetric(vertical: 14),
+                                side: BorderSide(color: Colors.black54),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: Text(
+                                "Exit Tracking",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                            ),
                           )
                         else
                           Container(
