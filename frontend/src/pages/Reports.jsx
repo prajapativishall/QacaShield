@@ -74,7 +74,7 @@ export function Reports() {
   useEffect(() => {
     const fetchAssignments = async () => {
       try {
-        const res = await fetch(`${API_URL}/api/trips/assigned-history`, {
+        const res = await fetch(`${API_URL}/api/trips/assigned-history?limit=200`, {
           headers: {
             Authorization: `Bearer ${token}`
           }

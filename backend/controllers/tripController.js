@@ -104,6 +104,7 @@ export async function getMyTrips(req, res) {
   const trips = await Trip.findAll({
     where: { 
       user_id: userId,
+      current_phase: { [Op.notIn]: ["COMPLETED", "FINALIZED"] },
       [Op.or]: [
         { active: true },
         { current_phase: "PENDING" },
@@ -222,7 +223,10 @@ export async function completeTrip(req, res) {
     const trip = await Trip.findByPk(tripId);
     if (!trip) return res.status(404).json({ error: "Trip not found" });
 
-    // Allow completion only if returning home
+    if (trip.current_phase === "COMPLETED" || trip.current_phase === "FINALIZED") {
+      return res.json({ ok: true, message: "Trip already completed" });
+    }
+
     if (trip.current_phase !== "RETURNING_HOME") {
       return res.status(400).json({ error: "Trip must be in 'RETURNING_HOME' phase to complete." });
     }
@@ -345,8 +349,8 @@ export async function updateGpsPing(req, res) {
 
 export async function getAssignedTripsHistory(req, res) {
   try {
-    console.log("Fetching assigned trips history...");
-    
+    const limit = parseInt(req.query.limit, 10) || 200;
+
     if (!User) {
         throw new Error("User model import failed");
     }
@@ -361,7 +365,7 @@ export async function getAssignedTripsHistory(req, res) {
             console.error("Failed to re-establish association:", assocError);
         }
     }
-    
+
     if (!Trip.associations.Assigner) {
         try {
              Trip.belongsTo(User, { as: 'Assigner', foreignKey: 'assigned_by' });
@@ -372,6 +376,7 @@ export async function getAssignedTripsHistory(req, res) {
 
     const trips = await Trip.findAll({
       order: [['created_at', 'DESC']],
+      limit,
       include: [
         { 
           model: User, 
@@ -384,7 +389,6 @@ export async function getAssignedTripsHistory(req, res) {
         }
       ],
     });
-    console.log(`Fetched ${trips.length} trips.`);
     res.json(trips);
   } catch (error) {
     console.error("Error fetching trip history:", error);

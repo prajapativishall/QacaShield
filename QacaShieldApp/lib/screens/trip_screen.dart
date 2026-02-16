@@ -462,46 +462,6 @@ class _TripScreenState extends State<TripScreen> {
     }
   }
 
-  void _teleportToDest() {
-    double? dLat = _toDouble(_currentTrip['dest_lat']);
-    double? dLng = _toDouble(_currentTrip['dest_lng']);
-
-    if (dLat == 0.0 || dLng == 0.0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("No destination coordinates available")),
-      );
-      return;
-    }
-
-    final newLoc = LatLng(dLat, dLng);
-
-    setState(() {
-      _currentLocation = newLoc;
-      _markers.removeWhere((m) => m.key == Key('me'));
-      _markers.add(
-        Marker(
-          key: Key('me'),
-          point: newLoc,
-          width: 60,
-          height: 60,
-          child: Icon(Icons.navigation, color: Colors.blueAccent, size: 40),
-        ),
-      );
-    });
-
-    // Send update
-    final authService = Provider.of<AuthService>(context, listen: false);
-    TripService(authService.token!)
-        .sendGpsPing(widget.trip['id'], dLat, dLng)
-        .catchError((e) => print("Teleport ping failed: $e"));
-
-    _mapController.move(newLoc, 18.0);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("Teleported to Destination (Debug)")),
-    );
-  }
-
   Future<void> _completeTrip() async {
     final authService = Provider.of<AuthService>(context, listen: false);
     try {
@@ -730,19 +690,6 @@ class _TripScreenState extends State<TripScreen> {
                     size: 30,
                   ),
                   elevation: 4,
-                ),
-                SizedBox(height: 16),
-                FloatingActionButton(
-                  heroTag: "teleport_btn",
-                  onPressed: _teleportToDest,
-                  backgroundColor: Colors.orange,
-                  child: Icon(
-                    Icons.flight_takeoff,
-                    color: Colors.white,
-                    size: 30,
-                  ),
-                  elevation: 4,
-                  tooltip: "Teleport to Destination (Debug)",
                 ),
               ],
             ),
