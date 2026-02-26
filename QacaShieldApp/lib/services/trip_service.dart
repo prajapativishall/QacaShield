@@ -33,6 +33,23 @@ class TripService {
     }
   }
 
+  Future<List<dynamic>> fetchMyCompletedTrips() async {
+    final url = Uri.parse('${AppConstants.baseUrl}/trips/my-completed');
+    final response = await http.get(
+      url,
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else if (response.statusCode == 401 || response.statusCode == 403) {
+      throw AuthException('Session expired');
+    } else {
+      print('Failed to load completed trips: ${response.statusCode} ${response.body}');
+      throw Exception('Failed to load completed assignments: ${response.statusCode}');
+    }
+  }
+
   Future<void> sendGpsPing(int tripId, double lat, double lng) async {
     final url = Uri.parse('${AppConstants.baseUrl}/trips/gps-ping');
     await http.post(

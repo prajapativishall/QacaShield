@@ -148,6 +148,24 @@ export async function getCompletedTripsCount(req, res) {
   }
 }
 
+export async function getMyCompletedTrips(req, res) {
+  try {
+    const userId = req.user.id;
+    const trips = await Trip.findAll({
+      where: {
+        user_id: userId,
+        current_phase: { [Op.in]: ["COMPLETED", "FINALIZED"] }
+      },
+      order: [["actual_end_time", "DESC"]],
+      limit: 100
+    });
+    res.json(trips);
+  } catch (error) {
+    console.error("Error fetching completed assignments:", error);
+    res.status(500).json({ error: "Failed to fetch completed assignments" });
+  }
+}
+
 export async function acceptTrip(req, res) {
   try {
     const { tripId } = req.body;

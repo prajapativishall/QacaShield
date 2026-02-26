@@ -85,12 +85,87 @@ export function LiveMonitor() {
                             }}>
                                 ✅ Safety Verified
                             </div>
-                            {trip.helmet_image_url && (
-                                <img 
-                                    src={`${API_URL}${trip.helmet_image_url}`} 
-                                    alt="Helmet Selfie"
-                                    style={{ width: "100%", borderRadius: "8px", border: "1px solid #ddd" }}
-                                />
+                            {(trip.helmet_start_image_url || trip.helmet_return_image_url || trip.helmet_image_url) && (
+                              <>
+                                {trip.helmet_start_image_url && (
+                                  <div style={{ marginBottom: "8px" }}>
+                                    <strong style={{ fontSize: "0.8rem" }}>Start of Assignment</strong>
+                                    <div style={{ 
+                                      marginTop: "4px",
+                                      borderRadius: "6px",
+                                      overflow: "hidden",
+                                      border: "1px solid #ddd",
+                                      background: "#000"
+                                    }}>
+                                      <img
+                                        src={trip.helmet_start_image_url.startsWith("http")
+                                          ? trip.helmet_start_image_url
+                                          : `${API_URL}${trip.helmet_start_image_url}`}
+                                        alt="Helmet Start"
+                                        style={{ 
+                                          display: "block",
+                                          maxWidth: "100%",
+                                          maxHeight: "160px",
+                                          width: "auto",
+                                          height: "auto",
+                                          objectFit: "contain"
+                                        }}
+                                      />
+                                    </div>
+                                  </div>
+                                )}
+                                {trip.helmet_return_image_url && (
+                                  <div>
+                                    <strong style={{ fontSize: "0.8rem" }}>Return to Source</strong>
+                                    <div style={{ 
+                                      marginTop: "4px",
+                                      borderRadius: "6px",
+                                      overflow: "hidden",
+                                      border: "1px solid #ddd",
+                                      background: "#000"
+                                    }}>
+                                      <img
+                                        src={trip.helmet_return_image_url.startsWith("http")
+                                          ? trip.helmet_return_image_url
+                                          : `${API_URL}${trip.helmet_return_image_url}`}
+                                        alt="Helmet Return"
+                                        style={{ 
+                                          display: "block",
+                                          maxWidth: "100%",
+                                          maxHeight: "160px",
+                                          width: "auto",
+                                          height: "auto",
+                                          objectFit: "contain"
+                                        }}
+                                      />
+                                    </div>
+                                  </div>
+                                )}
+                                {!trip.helmet_start_image_url && !trip.helmet_return_image_url && trip.helmet_image_url && (
+                                  <div style={{ 
+                                    marginTop: "4px",
+                                    borderRadius: "6px",
+                                    overflow: "hidden",
+                                    border: "1px solid #ddd",
+                                    background: "#000"
+                                  }}>
+                                    <img
+                                      src={trip.helmet_image_url.startsWith("http")
+                                        ? trip.helmet_image_url
+                                        : `${API_URL}${trip.helmet_image_url}`}
+                                      alt="Helmet"
+                                      style={{ 
+                                        display: "block",
+                                        maxWidth: "100%",
+                                        maxHeight: "160px",
+                                        width: "auto",
+                                        height: "auto",
+                                        objectFit: "contain"
+                                      }}
+                                    />
+                                  </div>
+                                )}
+                              </>
                             )}
                             <small style={{ display: "block", marginTop: "4px", color: "#666" }}>
                                 Verified at: {new Date(trip.updated_at).toLocaleTimeString()}

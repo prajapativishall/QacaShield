@@ -15,6 +15,7 @@ import {
   listActiveTrips,
   getAssignedTripsHistory,
   getCompletedTripsCount,
+  getMyCompletedTrips,
   geocode,
   geocodeSuggestionsHandler
 } from "../controllers/tripController.js";
@@ -25,6 +26,7 @@ const router = Router();
 
 router.post("/", requireRole(["MANAGER", "ADMIN"]), createTrip);
 router.get("/my-trips", requireRole([]), getMyTrips);
+router.get("/my-completed", requireRole([]), getMyCompletedTrips);
 router.get("/active", requireRole(["MANAGER", "ADMIN"]), listActiveTrips);
 router.get("/completed/count", requireRole(["MANAGER", "ADMIN"]), getCompletedTripsCount);
 router.get("/assigned-history", requireRole(["MANAGER", "ADMIN"]), getAssignedTripsHistory);

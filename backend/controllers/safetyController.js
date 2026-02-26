@@ -19,7 +19,7 @@ export async function uploadHelmetSelfie(req, res) {
     const trip = await Trip.findByPk(tripId);
     if (!trip) {
       await fs.unlink(req.file.path).catch(() => {});
-      return res.status(404).json({ error: "Trip not found" });
+      return res.status(404).json({ error: "Assignment not found" });
     }
 
     // Perform Helmet Detection (DISABLED BY USER REQUEST)
@@ -44,8 +44,14 @@ export async function uploadHelmetSelfie(req, res) {
     // We store the relative path or full URL. Storing relative path is flexible.
     // server.js will need to serve "uploads" folder.
     const relativePath = `/uploads/safety_checks/${req.file.filename}`;
+
+    if (trip.current_phase === "REACHED_DESTINATION" || trip.current_phase === "RETURNING_HOME") {
+      trip.helmet_return_image_url = relativePath;
+    } else {
+      trip.helmet_start_image_url = relativePath;
+      trip.helmet_image_url = relativePath;
+    }
     
-    trip.helmet_image_url = relativePath;
     trip.is_safety_verified = true; // Mark as verified upon successful upload
     // Also save the timestamp of verification if needed, updated_at covers it mostly
     

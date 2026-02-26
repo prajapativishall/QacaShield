@@ -18,6 +18,7 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   int _selectedIndex = 0;
   late Future<List<dynamic>> _tripsFuture;
+  List<dynamic> _completedTrips = [];
 
   @override
   void initState() {
@@ -30,7 +31,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
     setState(() {
       _tripsFuture = TripService(authService.token!).fetchMyTrips();
     });
-    await _tripsFuture;
+    try {
+      final trips = await _tripsFuture;
+      final completed = await TripService(authService.token!).fetchMyCompletedTrips();
+      setState(() {
+        _completedTrips = completed;
+      });
+    } catch (_) {}
   }
 
   void _onItemTapped(int index) {
@@ -259,18 +266,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 }
 
                 final trips = snapshot.data!;
-                return ListView.separated(
+                return ListView(
                   physics: AlwaysScrollableScrollPhysics(),
-                  itemCount: trips.length,
                   padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  separatorBuilder: (ctx, i) => SizedBox(height: 16),
-                  itemBuilder: (context, index) {
-                    final trip = trips[index];
+                  children: [
+                    ListView.separated(
+                      shrinkWrap: true,
+                      physics: NeverScrollableScrollPhysics(),
+                      itemCount: trips.length,
+                      separatorBuilder: (ctx, i) => SizedBox(height: 16),
+                      itemBuilder: (context, index) {
+                        final trip = trips[index];
                     final isVerified =
                         trip['is_safety_verified'] == true ||
                         trip['is_safety_verified'] == 1;
 
-                    return Card(
+                        return Card(
                       elevation: 2,
                       shadowColor: Colors.black12,
                       shape: RoundedRectangleBorder(
@@ -440,8 +451,58 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           ),
                         ),
                       ),
-                    );
-                  },
+                        );
+                      },
+                    ),
+                    if (_completedTrips.isNotEmpty) ...[
+                      SizedBox(height: 24),
+                      Text(
+                        'Completed Assignments',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: AppConstants.secondaryColor,
+                        ),
+                      ),
+                      SizedBox(height: 12),
+                      ..._completedTrips.map((trip) {
+                        return Card(
+                          elevation: 1,
+                          shadowColor: Colors.black12,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: ListTile(
+                            leading: Icon(Icons.check_circle, color: Colors.green),
+                            title: Text(
+                              'Assignment ID: ${trip['task_title'] ?? trip['id']}',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                                color: AppConstants.secondaryColor,
+                              ),
+                            ),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                SizedBox(height: 4),
+                                Text(
+                                  'Completed at: ${trip['actual_end_time'] != null ? DateFormat('dd MMM, hh:mm a').format(DateTime.parse(trip['actual_end_time'])) : 'N/A'}',
+                                  style: TextStyle(fontSize: 12),
+                                ),
+                                if (trip['destination_address'] != null)
+                                  Text(
+                                    'Destination: ${trip['destination_address']}',
+                                    style: TextStyle(fontSize: 12),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ],
+                  ],
                 );
               },
             ),

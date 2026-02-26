@@ -72,6 +72,14 @@ export function Reports() {
   });
 
   useEffect(() => {
+    if (!token) {
+      setLoading(false);
+      setError("Not authenticated");
+      return;
+    }
+
+    let cancelled = false;
+
     const fetchAssignments = async () => {
       try {
         const res = await fetch(`${API_URL}/api/trips/assigned-history?limit=200`, {
@@ -81,7 +89,7 @@ export function Reports() {
         });
         
         if (res.status === 401) {
-            logout(); // Auto-logout if token is invalid
+            if (!cancelled) logout();
             return;
         }
         
@@ -91,17 +99,19 @@ export function Reports() {
         }
         
         const data = await res.json();
-        setAssignments(data);
+        if (!cancelled) setAssignments(data);
       } catch (err) {
-        setError(err.message);
+        if (!cancelled) setError(err.message);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
-    if (token) {
-      fetchAssignments();
-    }
+    fetchAssignments();
+
+    return () => {
+      cancelled = true;
+    };
   }, [token, logout]);
 
   const handleRowClick = (trip) => {
@@ -306,18 +316,48 @@ export function Reports() {
                 <h4>Route Details</h4>
                 <p><strong>Origin:</strong> {selectedTrip.origin_lat}, {selectedTrip.origin_lng}</p>
                 <p><strong>Destination:</strong> {selectedTrip.dest_lat}, {selectedTrip.dest_lng}</p>
-                {selectedTrip.helmet_image_url && (
+                {(selectedTrip.helmet_start_image_url || selectedTrip.helmet_return_image_url || selectedTrip.helmet_image_url) && (
                     <div className="helmet-check-section">
                         <p><strong>Helmet Check:</strong> Verified</p>
-                        <div className="helmet-image-container">
-                            <img 
-                                src={selectedTrip.helmet_image_url.startsWith('http') 
-                                    ? selectedTrip.helmet_image_url 
-                                    : `${API_URL}${selectedTrip.helmet_image_url}`} 
-                                alt="Helmet Check" 
+                        {selectedTrip.helmet_start_image_url && (
+                          <div style={{ marginBottom: '12px' }}>
+                            <p><strong>Start of Assignment</strong></p>
+                            <div className="helmet-image-container">
+                              <img
+                                src={selectedTrip.helmet_start_image_url.startsWith('http')
+                                  ? selectedTrip.helmet_start_image_url
+                                  : `${API_URL}${selectedTrip.helmet_start_image_url}`}
+                                alt="Helmet Check at Start"
                                 className="helmet-image"
+                              />
+                            </div>
+                          </div>
+                        )}
+                        {selectedTrip.helmet_return_image_url && (
+                          <div>
+                            <p><strong>Return to Source</strong></p>
+                            <div className="helmet-image-container">
+                              <img
+                                src={selectedTrip.helmet_return_image_url.startsWith('http')
+                                  ? selectedTrip.helmet_return_image_url
+                                  : `${API_URL}${selectedTrip.helmet_return_image_url}`}
+                                alt="Helmet Check on Return"
+                                className="helmet-image"
+                              />
+                            </div>
+                          </div>
+                        )}
+                        {!selectedTrip.helmet_start_image_url && !selectedTrip.helmet_return_image_url && selectedTrip.helmet_image_url && (
+                          <div className="helmet-image-container">
+                            <img
+                              src={selectedTrip.helmet_image_url.startsWith('http')
+                                ? selectedTrip.helmet_image_url
+                                : `${API_URL}${selectedTrip.helmet_image_url}`}
+                              alt="Helmet Check"
+                              className="helmet-image"
                             />
-                        </div>
+                          </div>
+                        )}
                     </div>
                 )}
               </div>

@@ -16,6 +16,8 @@ export const Trip = sequelize.define(
     home_lng: { type: DataTypes.DECIMAL(10, 7), allowNull: true },
     route_polyline: { type: DataTypes.TEXT('long'), allowNull: true },
     helmet_image_url: { type: DataTypes.STRING(255), allowNull: true },
+    helmet_start_image_url: { type: DataTypes.STRING(255), allowNull: true },
+    helmet_return_image_url: { type: DataTypes.STRING(255), allowNull: true },
     is_safety_verified: { type: DataTypes.BOOLEAN, defaultValue: false },
     
     // New Fields for Assignment Form
