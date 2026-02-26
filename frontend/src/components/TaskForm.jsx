@@ -12,6 +12,8 @@ export function TaskForm({ selectedUser, onSuccess, onCancel }) {
     task_title: "",
     priority: "MEDIUM",
     destination: "",
+    dest_lat: "",
+    dest_lng: "",
     geofence_radius: 100,
     route_optimization: "FASTEST",
     expected_start_time: "",
@@ -202,7 +204,30 @@ export function TaskForm({ selectedUser, onSuccess, onCancel }) {
   };
 
   const handlePreview = async () => {
-    if (!formData.destination) return alert("Enter destination");
+    const hasLat = formData.dest_lat && formData.dest_lat.trim() !== "";
+    const hasLng = formData.dest_lng && formData.dest_lng.trim() !== "";
+
+    if (hasLat && hasLng) {
+      const lat = parseFloat(formData.dest_lat);
+      const lng = parseFloat(formData.dest_lng);
+      if (Number.isNaN(lat) || Number.isNaN(lng)) {
+        return alert("Enter valid numeric latitude and longitude");
+      }
+      const destCoords = { lat, lng };
+      setRouteData({
+        path: [],
+        polyline: null,
+        bounds: [
+          [destCoords.lat, destCoords.lng],
+          [destCoords.lat, destCoords.lng]
+        ],
+        destCoords
+      });
+      setShowMapPreview(true);
+      return;
+    }
+
+    if (!formData.destination) return alert("Enter destination or coordinates");
     setLoadingRoute(true);
     
     try {
@@ -242,13 +267,27 @@ export function TaskForm({ selectedUser, onSuccess, onCancel }) {
       }
 
       try {
+        const manualLat = formData.dest_lat && formData.dest_lat.trim() !== "" ? parseFloat(formData.dest_lat) : null;
+        const manualLng = formData.dest_lng && formData.dest_lng.trim() !== "" ? parseFloat(formData.dest_lng) : null;
+
+        if ((manualLat !== null && Number.isNaN(manualLat)) || (manualLng !== null && Number.isNaN(manualLng))) {
+          return alert("Enter valid numeric latitude and longitude");
+        }
+
+        const destLat = manualLat !== null ? manualLat : routeData?.destCoords?.lat ?? null;
+        const destLng = manualLng !== null ? manualLng : routeData?.destCoords?.lng ?? null;
+
+        if (!formData.destination && (destLat === null || destLng === null)) {
+          return alert("Provide either destination address or both latitude and longitude");
+        }
+
         const payload = {
             ...formData,
             route_polyline: null,
             origin_lat: null,
             origin_lng: null,
-            dest_lat: routeData?.destCoords?.lat || null,
-            dest_lng: routeData?.destCoords?.lng || null,
+            dest_lat: destLat,
+            dest_lng: destLng,
             destination_address: formData.destination,
         };
 
@@ -263,7 +302,7 @@ export function TaskForm({ selectedUser, onSuccess, onCancel }) {
 
         if (res.ok) {
             alert("Assignment Created!");
-            setFormData({ ...formData, task_title: "", destination: "", expected_start_time: "" });
+            setFormData({ ...formData, task_title: "", destination: "", dest_lat: "", dest_lng: "", expected_start_time: "" });
             setShowMapPreview(false);
             if (onSuccess) onSuccess();
         } else {
@@ -390,6 +429,29 @@ export function TaskForm({ selectedUser, onSuccess, onCancel }) {
                       </div>
                     )}
                 </div>
+            </div>
+
+            <div className="form-group">
+                <label>Destination Coordinates (optional)</label>
+                <div className="latlng-row">
+                    <input
+                      type="text"
+                      name="dest_lat"
+                      placeholder="Latitude e.g. 28.6139"
+                      value={formData.dest_lat}
+                      onChange={handleChange}
+                    />
+                    <input
+                      type="text"
+                      name="dest_lng"
+                      placeholder="Longitude e.g. 77.2090"
+                      value={formData.dest_lng}
+                      onChange={handleChange}
+                    />
+                </div>
+                <small style={{ color: '#6B7280' }}>
+                    Fill either destination address or both latitude and longitude
+                </small>
             </div>
 
             {/* Site Geofence Radius Slider */}

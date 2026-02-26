@@ -924,31 +924,6 @@ class _TripScreenState extends State<TripScreen> {
                                     ),
                                   ],
                                 )
-                              else if (_currentTrip['current_phase'] ==
-                                  'RETURNING_HOME')
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: ElevatedButton(
-                                    onPressed: _completeTrip,
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.green,
-                                      padding: EdgeInsets.symmetric(
-                                        vertical: 16,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                    ),
-                                    child: Text(
-                                      "Complete Assignment",
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ),
-                                ),
                             ],
                           ),
                         if (_currentTrip['active'])

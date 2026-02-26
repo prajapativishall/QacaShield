@@ -81,6 +81,12 @@
   height: 42px;
 }
 
+.latlng-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
 .form-group input:focus,
 .form-group select:focus {
   outline: none;
