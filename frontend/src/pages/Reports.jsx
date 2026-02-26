@@ -71,6 +71,13 @@ export function Reports() {
     status: ''
   });
 
+  const resolveHelmetUrl = (raw) => {
+    if (!raw) return null;
+    if (raw.startsWith("http")) return raw;
+    if (raw.startsWith("/uploads")) return `${API_URL}${raw}`;
+    return `${API_URL}/uploads/safety_checks/${raw.replace(/^\/+/, "")}`;
+  };
+
   useEffect(() => {
     if (!token) {
       setLoading(false);
@@ -319,40 +326,34 @@ export function Reports() {
                 {(selectedTrip.helmet_start_image_url || selectedTrip.helmet_return_image_url || selectedTrip.helmet_image_url) && (
                     <div className="helmet-check-section">
                         <p><strong>Helmet Check:</strong> Verified</p>
-                        {selectedTrip.helmet_start_image_url && (
+                        {selectedTrip.helmet_start_image_url && resolveHelmetUrl(selectedTrip.helmet_start_image_url) && (
                           <div style={{ marginBottom: '12px' }}>
                             <p><strong>Start of Assignment</strong></p>
                             <div className="helmet-image-container">
                               <img
-                                src={selectedTrip.helmet_start_image_url.startsWith('http')
-                                  ? selectedTrip.helmet_start_image_url
-                                  : `${API_URL}${selectedTrip.helmet_start_image_url}`}
+                                src={resolveHelmetUrl(selectedTrip.helmet_start_image_url)}
                                 alt="Helmet Check at Start"
                                 className="helmet-image"
                               />
                             </div>
                           </div>
                         )}
-                        {selectedTrip.helmet_return_image_url && (
+                        {selectedTrip.helmet_return_image_url && resolveHelmetUrl(selectedTrip.helmet_return_image_url) && (
                           <div>
                             <p><strong>Return to Source</strong></p>
                             <div className="helmet-image-container">
                               <img
-                                src={selectedTrip.helmet_return_image_url.startsWith('http')
-                                  ? selectedTrip.helmet_return_image_url
-                                  : `${API_URL}${selectedTrip.helmet_return_image_url}`}
+                                src={resolveHelmetUrl(selectedTrip.helmet_return_image_url)}
                                 alt="Helmet Check on Return"
                                 className="helmet-image"
                               />
                             </div>
                           </div>
                         )}
-                        {!selectedTrip.helmet_start_image_url && !selectedTrip.helmet_return_image_url && selectedTrip.helmet_image_url && (
+                        {!selectedTrip.helmet_start_image_url && !selectedTrip.helmet_return_image_url && selectedTrip.helmet_image_url && resolveHelmetUrl(selectedTrip.helmet_image_url) && (
                           <div className="helmet-image-container">
                             <img
-                              src={selectedTrip.helmet_image_url.startsWith('http')
-                                ? selectedTrip.helmet_image_url
-                                : `${API_URL}${selectedTrip.helmet_image_url}`}
+                              src={resolveHelmetUrl(selectedTrip.helmet_image_url)}
                               alt="Helmet Check"
                               className="helmet-image"
                             />
