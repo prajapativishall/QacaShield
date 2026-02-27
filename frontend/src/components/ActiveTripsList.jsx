@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { API_URL } from '../apiConfig';
-import '../styles/ActiveTripsList.css'; // We'll create this or use inline for now
+import '../styles/ActiveTripsList.css';
 
 export function ActiveTripsList() {
     const { token } = useAuth();
@@ -13,7 +13,7 @@ export function ActiveTripsList() {
 
         const fetchActiveTrips = async () => {
             try {
-                const res = await fetch(`${API_URL}/api/trips/active`, {
+                const res = await fetch(`${API_URL}/api/assignments/active`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 if (res.ok) {

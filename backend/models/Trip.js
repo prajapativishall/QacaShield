@@ -39,5 +39,5 @@ export const Trip = sequelize.define(
     },
     active: { type: DataTypes.BOOLEAN, defaultValue: false }
   },
-  { tableName: "trips", timestamps: true, underscored: true }
+  { tableName: "assignments", timestamps: true, underscored: true }
 );

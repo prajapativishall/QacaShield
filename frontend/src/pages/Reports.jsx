@@ -89,7 +89,7 @@ export function Reports() {
 
     const fetchAssignments = async () => {
       try {
-        const res = await fetch(`${API_URL}/api/trips/assigned-history?limit=200`, {
+        const res = await fetch(`${API_URL}/api/assignments/assigned-history?limit=200`, {
           headers: {
             Authorization: `Bearer ${token}`
           }

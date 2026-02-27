@@ -8,6 +8,7 @@ import dashboardRoutes from "./dashboardRoutes.js";
 const router = Router();
 
 router.use("/auth", authRoutes);
+router.use("/assignments", tripRoutes);
 router.use("/trips", tripRoutes);
 router.use("/users", userRoutes);
 router.use("/safety", safetyRoutes);

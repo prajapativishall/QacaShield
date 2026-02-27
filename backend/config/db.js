@@ -42,6 +42,22 @@ export async function initDB() {
     Trip.hasMany(Log, { foreignKey: 'trip_id' });
     Log.belongsTo(Trip, { foreignKey: 'trip_id' });
 
+    // Rename legacy 'trips' table to 'assignments' if needed
+    try {
+      const [tables] = await sequelize.query(
+        "SELECT TABLE_NAME as name FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME IN ('trips','assignments')"
+      );
+      const names = tables.map((t) => t.name);
+      const hasTrips = names.includes("trips");
+      const hasAssignments = names.includes("assignments");
+      if (hasTrips && !hasAssignments) {
+        await sequelize.query("RENAME TABLE trips TO assignments");
+        console.log("Renamed table 'trips' to 'assignments'");
+      }
+    } catch (e) {
+      console.log("Note: Could not check/rename trips table:", e.message);
+    }
+
     await sequelize.sync({ alter: false });
 
     // Helper function to add column if it doesn't exist
@@ -59,34 +75,34 @@ export async function initDB() {
         }
     }
     
-    // Manually upgrade route_polyline to LONGTEXT to support long trips
+    // Manually upgrade route_polyline to LONGTEXT to support long assignments
     try {
-        await sequelize.query("ALTER TABLE trips MODIFY COLUMN route_polyline LONGTEXT");
+        await sequelize.query("ALTER TABLE assignments MODIFY COLUMN route_polyline LONGTEXT");
     } catch (e) {
         console.log("Note: Could not alter route_polyline to LONGTEXT.");
     }
 
-    // Add missing columns to trips
-    await addColumnIfNotExists('trips', 'assigned_by', 'INTEGER UNSIGNED NULL AFTER user_id');
-    await addColumnIfNotExists('trips', 'destination_address', 'VARCHAR(255) NULL AFTER dest_lng');
-    await addColumnIfNotExists('trips', 'helmet_image_url', 'VARCHAR(255) NULL');
-    await addColumnIfNotExists('trips', 'helmet_start_image_url', 'VARCHAR(255) NULL');
-    await addColumnIfNotExists('trips', 'helmet_return_image_url', 'VARCHAR(255) NULL');
-    await addColumnIfNotExists('trips', 'is_safety_verified', 'TINYINT(1) DEFAULT 0');
-    await addColumnIfNotExists('trips', 'exit_reason', 'TEXT NULL');
-    await addColumnIfNotExists('trips', 'task_title', 'VARCHAR(200) NULL');
-    await addColumnIfNotExists('trips', 'priority', "ENUM('LOW', 'MEDIUM', 'HIGH') DEFAULT 'MEDIUM'");
-    await addColumnIfNotExists('trips', 'geofence_radius', 'INTEGER DEFAULT 100');
-    await addColumnIfNotExists('trips', 'route_optimization', "ENUM('FASTEST', 'SAFEST') DEFAULT 'FASTEST'");
-    await addColumnIfNotExists('trips', 'expected_start_time', 'DATETIME NULL');
-    await addColumnIfNotExists('trips', 'buffer_time', 'INTEGER DEFAULT 15');
-    await addColumnIfNotExists('trips', 'actual_start_time', 'DATETIME NULL');
-    await addColumnIfNotExists('trips', 'actual_end_time', 'DATETIME NULL');
+    // Add missing columns to assignments (formerly trips)
+    await addColumnIfNotExists('assignments', 'assigned_by', 'INTEGER UNSIGNED NULL AFTER user_id');
+    await addColumnIfNotExists('assignments', 'destination_address', 'VARCHAR(255) NULL AFTER dest_lng');
+    await addColumnIfNotExists('assignments', 'helmet_image_url', 'VARCHAR(255) NULL');
+    await addColumnIfNotExists('assignments', 'helmet_start_image_url', 'VARCHAR(255) NULL');
+    await addColumnIfNotExists('assignments', 'helmet_return_image_url', 'VARCHAR(255) NULL');
+    await addColumnIfNotExists('assignments', 'is_safety_verified', 'TINYINT(1) DEFAULT 0');
+    await addColumnIfNotExists('assignments', 'exit_reason', 'TEXT NULL');
+    await addColumnIfNotExists('assignments', 'task_title', 'VARCHAR(200) NULL');
+    await addColumnIfNotExists('assignments', 'priority', "ENUM('LOW', 'MEDIUM', 'HIGH') DEFAULT 'MEDIUM'");
+    await addColumnIfNotExists('assignments', 'geofence_radius', 'INTEGER DEFAULT 100');
+    await addColumnIfNotExists('assignments', 'route_optimization', "ENUM('FASTEST', 'SAFEST') DEFAULT 'FASTEST'");
+    await addColumnIfNotExists('assignments', 'expected_start_time', 'DATETIME NULL');
+    await addColumnIfNotExists('assignments', 'buffer_time', 'INTEGER DEFAULT 15');
+    await addColumnIfNotExists('assignments', 'actual_start_time', 'DATETIME NULL');
+    await addColumnIfNotExists('assignments', 'actual_end_time', 'DATETIME NULL');
 
-    // Update ENUM for current_phase
+    // Update ENUM for current_phase on assignments table
     try {
         await sequelize.query(`
-            ALTER TABLE trips 
+            ALTER TABLE assignments 
             MODIFY COLUMN current_phase 
             ENUM('PLANNED', 'PENDING', 'ACCEPTED', 'ACTIVE', 'REACHED_DESTINATION', 'RETURNING_HOME', 'FINALIZED', 'COMPLETED') 
             DEFAULT 'PENDING'

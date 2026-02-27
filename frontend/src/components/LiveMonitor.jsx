@@ -38,7 +38,7 @@ export function LiveMonitor() {
 
   const fetchActiveTrips = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/trips/active`, {
+      const res = await fetch(`${API_URL}/api/assignments/active`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {

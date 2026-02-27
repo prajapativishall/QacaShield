@@ -17,7 +17,7 @@ class TripService {
   TripService(this.token);
 
   Future<List<dynamic>> fetchMyTrips() async {
-    final url = Uri.parse('${AppConstants.baseUrl}/trips/my-trips');
+    final url = Uri.parse('${AppConstants.baseUrl}/assignments/my-trips');
     final response = await http.get(
       url,
       headers: {'Authorization': 'Bearer $token'},
@@ -34,7 +34,7 @@ class TripService {
   }
 
   Future<List<dynamic>> fetchMyCompletedTrips() async {
-    final url = Uri.parse('${AppConstants.baseUrl}/trips/my-completed');
+    final url = Uri.parse('${AppConstants.baseUrl}/assignments/my-completed');
     final response = await http.get(
       url,
       headers: {'Authorization': 'Bearer $token'},
@@ -55,7 +55,7 @@ class TripService {
   }
 
   Future<void> sendGpsPing(int tripId, double lat, double lng) async {
-    final url = Uri.parse('${AppConstants.baseUrl}/trips/gps-ping');
+    final url = Uri.parse('${AppConstants.baseUrl}/assignments/gps-ping');
     await http.post(
       url,
       headers: {
@@ -73,7 +73,7 @@ class TripService {
     double lat,
     double lng,
   ) async {
-    final url = Uri.parse('${AppConstants.baseUrl}/trips/alert');
+    final url = Uri.parse('${AppConstants.baseUrl}/assignments/alert');
     await http.post(
       url,
       headers: {
@@ -146,7 +146,7 @@ class TripService {
   }
 
   Future<void> acceptTrip(int tripId) async {
-    final url = Uri.parse('${AppConstants.baseUrl}/trips/accept');
+    final url = Uri.parse('${AppConstants.baseUrl}/assignments/accept');
     final response = await http.post(
       url,
       headers: {
@@ -162,7 +162,7 @@ class TripService {
   }
 
   Future<void> startTrip(int tripId, {double? lat, double? lng}) async {
-    final url = Uri.parse('${AppConstants.baseUrl}/trips/start');
+    final url = Uri.parse('${AppConstants.baseUrl}/assignments/start');
     final Map<String, dynamic> body = {'tripId': tripId};
     if (lat != null && lng != null) {
       body['lat'] = lat;
@@ -184,7 +184,7 @@ class TripService {
   }
 
   Future<void> completeTrip(int tripId) async {
-    final url = Uri.parse('${AppConstants.baseUrl}/trips/complete');
+    final url = Uri.parse('${AppConstants.baseUrl}/assignments/complete');
     final response = await http.post(
       url,
       headers: {
@@ -200,7 +200,9 @@ class TripService {
   }
 
   Future<void> reachDestination(int tripId) async {
-    final url = Uri.parse('${AppConstants.baseUrl}/trips/reach-destination');
+    final url = Uri.parse(
+      '${AppConstants.baseUrl}/assignments/reach-destination',
+    );
     final response = await http.post(
       url,
       headers: {
@@ -232,7 +234,7 @@ class TripService {
   }
 
   Future<void> startReturnTrip(int tripId, double lat, double lng) async {
-    final url = Uri.parse('${AppConstants.baseUrl}/trips/return-home');
+    final url = Uri.parse('${AppConstants.baseUrl}/assignments/return-home');
     final response = await http.post(
       url,
       headers: {
@@ -249,7 +251,7 @@ class TripService {
 
   Future<Map<String, dynamic>> fetchOfflineSync(int tripId) async {
     final url = Uri.parse(
-      '${AppConstants.baseUrl}/trips/offline-sync?tripId=$tripId',
+      '${AppConstants.baseUrl}/assignments/offline-sync?tripId=$tripId',
     );
     final response = await http.get(
       url,

@@ -26,7 +26,7 @@ export function Dashboard() {
   const fetchCurrentTrip = async () => {
     setLoadingTrip(true);
     try {
-      const res = await fetch(`${API_URL}/api/trips/my-trips`, {
+      const res = await fetch(`${API_URL}/api/assignments/my-trips`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
