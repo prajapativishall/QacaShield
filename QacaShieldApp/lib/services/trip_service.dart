@@ -45,8 +45,12 @@ class TripService {
     } else if (response.statusCode == 401 || response.statusCode == 403) {
       throw AuthException('Session expired');
     } else {
-      print('Failed to load completed trips: ${response.statusCode} ${response.body}');
-      throw Exception('Failed to load completed assignments: ${response.statusCode}');
+      print(
+        'Failed to load completed trips: ${response.statusCode} ${response.body}',
+      );
+      throw Exception(
+        'Failed to load completed assignments: ${response.statusCode}',
+      );
     }
   }
 
@@ -211,6 +215,22 @@ class TripService {
     }
   }
 
+  Future<void> earlyExitTrip(int tripId, String reason) async {
+    final url = Uri.parse('${AppConstants.baseUrl}/trips/early-exit');
+    final response = await http.post(
+      url,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+      body: json.encode({'tripId': tripId, 'reason': reason}),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to mark early exit: ${response.body}');
+    }
+  }
+
   Future<void> startReturnTrip(int tripId, double lat, double lng) async {
     final url = Uri.parse('${AppConstants.baseUrl}/trips/return-home');
     final response = await http.post(
@@ -228,8 +248,9 @@ class TripService {
   }
 
   Future<Map<String, dynamic>> fetchOfflineSync(int tripId) async {
-    final url =
-        Uri.parse('${AppConstants.baseUrl}/trips/offline-sync?tripId=$tripId');
+    final url = Uri.parse(
+      '${AppConstants.baseUrl}/trips/offline-sync?tripId=$tripId',
+    );
     final response = await http.get(
       url,
       headers: {'Authorization': 'Bearer $token'},
@@ -238,7 +259,8 @@ class TripService {
       return json.decode(response.body) as Map<String, dynamic>;
     } else {
       throw Exception(
-          'Failed to load offline route: ${response.statusCode} ${response.body}');
+        'Failed to load offline route: ${response.statusCode} ${response.body}',
+      );
     }
   }
 }

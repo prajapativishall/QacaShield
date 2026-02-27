@@ -19,6 +19,7 @@ export const Trip = sequelize.define(
     helmet_start_image_url: { type: DataTypes.STRING(255), allowNull: true },
     helmet_return_image_url: { type: DataTypes.STRING(255), allowNull: true },
     is_safety_verified: { type: DataTypes.BOOLEAN, defaultValue: false },
+    exit_reason: { type: DataTypes.TEXT, allowNull: true },
     
     // New Fields for Assignment Form
     task_title: { type: DataTypes.STRING(200), allowNull: true },

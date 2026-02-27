@@ -73,6 +73,7 @@ export async function initDB() {
     await addColumnIfNotExists('trips', 'helmet_start_image_url', 'VARCHAR(255) NULL');
     await addColumnIfNotExists('trips', 'helmet_return_image_url', 'VARCHAR(255) NULL');
     await addColumnIfNotExists('trips', 'is_safety_verified', 'TINYINT(1) DEFAULT 0');
+    await addColumnIfNotExists('trips', 'exit_reason', 'TEXT NULL');
     await addColumnIfNotExists('trips', 'task_title', 'VARCHAR(200) NULL');
     await addColumnIfNotExists('trips', 'priority', "ENUM('LOW', 'MEDIUM', 'HIGH') DEFAULT 'MEDIUM'");
     await addColumnIfNotExists('trips', 'geofence_radius', 'INTEGER DEFAULT 100');

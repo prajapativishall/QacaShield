@@ -163,7 +163,9 @@ export function Reports() {
     return assignments.map(trip => ({
       ...trip,
       displayId: trip.task_title || generateAssignmentId(trip),
-      displayStatus: trip.current_phase === 'FINALIZED' ? 'COMPLETED' : trip.current_phase
+      displayStatus: trip.exit_reason
+        ? 'EARLY_EXIT'
+        : (trip.current_phase === 'FINALIZED' ? 'COMPLETED' : trip.current_phase)
     }));
   }, [assignments]);
 
@@ -283,7 +285,10 @@ export function Reports() {
                   <td>{trip.User ? trip.User.name : "Unknown"}</td>
                   <td>{trip.Assigner ? trip.Assigner.name : "System"}</td>
                   <td>
-                    <span className={`status-badge status-${trip.current_phase.toLowerCase()}`}>
+                    <span
+                      className={`status-badge status-${(trip.displayStatus || 'unknown').toLowerCase()}`}
+                      title={trip.exit_reason ? `Early exit: ${trip.exit_reason}` : undefined}
+                    >
                       {trip.displayStatus}
                     </span>
                   </td>
@@ -326,39 +331,43 @@ export function Reports() {
                 {(selectedTrip.helmet_start_image_url || selectedTrip.helmet_return_image_url || selectedTrip.helmet_image_url) && (
                     <div className="helmet-check-section">
                         <p><strong>Helmet Check:</strong> Verified</p>
-                        {selectedTrip.helmet_start_image_url && resolveHelmetUrl(selectedTrip.helmet_start_image_url) && (
-                          <div style={{ marginBottom: '12px' }}>
-                            <p><strong>Start of Assignment</strong></p>
-                            <div className="helmet-image-container">
-                              <img
-                                src={resolveHelmetUrl(selectedTrip.helmet_start_image_url)}
-                                alt="Helmet Check at Start"
-                                className="helmet-image"
-                              />
+                        <div className="helmet-images-row">
+                          {selectedTrip.helmet_start_image_url && resolveHelmetUrl(selectedTrip.helmet_start_image_url) && (
+                            <div className="helmet-image-col">
+                              <p><strong>Start of Assignment</strong></p>
+                              <div className="helmet-image-container">
+                                <img
+                                  src={resolveHelmetUrl(selectedTrip.helmet_start_image_url)}
+                                  alt="Helmet Check at Start"
+                                  className="helmet-image"
+                                />
+                              </div>
                             </div>
-                          </div>
-                        )}
-                        {selectedTrip.helmet_return_image_url && resolveHelmetUrl(selectedTrip.helmet_return_image_url) && (
-                          <div>
-                            <p><strong>Return to Source</strong></p>
-                            <div className="helmet-image-container">
-                              <img
-                                src={resolveHelmetUrl(selectedTrip.helmet_return_image_url)}
-                                alt="Helmet Check on Return"
-                                className="helmet-image"
-                              />
+                          )}
+                          {selectedTrip.helmet_return_image_url && resolveHelmetUrl(selectedTrip.helmet_return_image_url) && (
+                            <div className="helmet-image-col">
+                              <p><strong>Return to Source</strong></p>
+                              <div className="helmet-image-container">
+                                <img
+                                  src={resolveHelmetUrl(selectedTrip.helmet_return_image_url)}
+                                  alt="Helmet Check on Return"
+                                  className="helmet-image"
+                                />
+                              </div>
                             </div>
-                          </div>
-                        )}
-                        {!selectedTrip.helmet_start_image_url && !selectedTrip.helmet_return_image_url && selectedTrip.helmet_image_url && resolveHelmetUrl(selectedTrip.helmet_image_url) && (
-                          <div className="helmet-image-container">
-                            <img
-                              src={resolveHelmetUrl(selectedTrip.helmet_image_url)}
-                              alt="Helmet Check"
-                              className="helmet-image"
-                            />
-                          </div>
-                        )}
+                          )}
+                          {!selectedTrip.helmet_start_image_url && !selectedTrip.helmet_return_image_url && selectedTrip.helmet_image_url && resolveHelmetUrl(selectedTrip.helmet_image_url) && (
+                            <div className="helmet-image-col">
+                              <div className="helmet-image-container">
+                                <img
+                                  src={resolveHelmetUrl(selectedTrip.helmet_image_url)}
+                                  alt="Helmet Check"
+                                  className="helmet-image"
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
                     </div>
                 )}
               </div>

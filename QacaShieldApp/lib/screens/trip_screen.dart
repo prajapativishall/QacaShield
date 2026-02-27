@@ -342,6 +342,34 @@ class _TripScreenState extends State<TripScreen> {
     }
   }
 
+  Future<void> _checkDestinationGeofence(LocationData currentLocation) async {
+    if (_currentTrip['current_phase'] != 'ACTIVE') {
+      return;
+    }
+    if (currentLocation.latitude == null || currentLocation.longitude == null) {
+      return;
+    }
+    final current = LatLng(
+      currentLocation.latitude!,
+      currentLocation.longitude!,
+    );
+    final destLatVal = _toDouble(_currentTrip['dest_lat']);
+    final destLngVal = _toDouble(_currentTrip['dest_lng']);
+    if (destLatVal == 0.0 && destLngVal == 0.0) {
+      return;
+    }
+    final dest = LatLng(destLatVal, destLngVal);
+    final radius =
+        (_currentTrip['geofence_radius'] is num
+                ? _currentTrip['geofence_radius']
+                : 100)
+            .toDouble();
+    final distance = _distanceInMeters(current, dest);
+    if (distance <= radius) {
+      await _reachDestination();
+    }
+  }
+
   Future<void> _startTracking() async {
     bool _serviceEnabled;
     PermissionStatus _permissionGranted;
@@ -409,6 +437,7 @@ class _TripScreenState extends State<TripScreen> {
         }
 
         _checkGeofenceAndComplete(currentLocation);
+        _checkDestinationGeofence(currentLocation);
       }
     });
   }
@@ -497,10 +526,10 @@ class _TripScreenState extends State<TripScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Marked as Arrived at Destination")),
       );
+      if (!mounted) return;
       setState(() {
         _currentTrip['current_phase'] = 'REACHED_DESTINATION';
       });
-      // Optionally refresh to ensure data sync
       _refreshTripData();
     } catch (e) {
       ScaffoldMessenger.of(
@@ -546,11 +575,20 @@ class _TripScreenState extends State<TripScreen> {
                   context,
                   listen: false,
                 );
-                await authService.logExit(reasonController.text.trim());
+                final tripService = TripService(authService.token!);
+                final reason = reasonController.text.trim();
+                await tripService.earlyExitTrip(_currentTrip['id'], reason);
+                await authService.logExit(reason);
                 if (mounted) {
                   Navigator.pop(context);
+                  await _exitTracking();
+                  setState(() {
+                    _currentTrip['current_phase'] = 'COMPLETED';
+                    _currentTrip['active'] = false;
+                    _currentTrip['exit_reason'] = reason;
+                  });
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Exit logged successfully')),
+                    SnackBar(content: Text('Assignment marked as Early Exit')),
                   );
                 }
               } catch (e) {
@@ -841,32 +879,7 @@ class _TripScreenState extends State<TripScreen> {
                         if (_currentTrip['active'])
                           Column(
                             children: [
-                              if (_currentTrip['current_phase'] == 'ACTIVE' ||
-                                  _currentTrip['current_phase'] == null)
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: ElevatedButton(
-                                    onPressed: _reachDestination,
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.blueAccent,
-                                      padding: EdgeInsets.symmetric(
-                                        vertical: 16,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                    ),
-                                    child: Text(
-                                      "Reached Destination",
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ),
-                                )
-                              else if (_currentTrip['current_phase'] ==
+                              if (_currentTrip['current_phase'] ==
                                   'REACHED_DESTINATION')
                                 Column(
                                   children: [
@@ -923,7 +936,7 @@ class _TripScreenState extends State<TripScreen> {
                                       ),
                                     ),
                                   ],
-                                )
+                                ),
                             ],
                           ),
                         if (_currentTrip['active'])

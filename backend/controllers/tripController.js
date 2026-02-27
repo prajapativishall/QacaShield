@@ -261,6 +261,38 @@ export async function completeTrip(req, res) {
   }
 }
 
+export async function earlyExitTrip(req, res) {
+  try {
+    const { tripId, reason } = req.body;
+    if (!tripId) return res.status(400).json({ error: "Missing tripId" });
+    if (!reason || !reason.trim()) {
+      return res.status(400).json({ error: "Missing exit reason" });
+    }
+
+    const trip = await Trip.findByPk(tripId);
+    if (!trip) return res.status(404).json({ error: "Assignment not found" });
+
+    if (trip.current_phase === "COMPLETED" || trip.current_phase === "FINALIZED") {
+      return res.json({ ok: true, message: "Assignment already completed" });
+    }
+
+    if (trip.current_phase !== "REACHED_DESTINATION") {
+      return res.status(400).json({ error: "Assignment must be at destination for early exit" });
+    }
+
+    trip.exit_reason = reason;
+    trip.current_phase = "COMPLETED";
+    trip.active = false;
+    trip.actual_end_time = new Date();
+    await trip.save();
+
+    res.json({ ok: true, message: "Assignment marked as early exit" });
+  } catch (error) {
+    console.error("Error marking early exit:", error);
+    res.status(500).json({ error: "Failed to mark early exit" });
+  }
+}
+
 export async function reachDestination(req, res) {
   try {
     const { tripId } = req.body;
