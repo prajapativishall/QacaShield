@@ -81,7 +81,7 @@ class TripService {
         'Content-Type': 'application/json',
       },
       body: json.encode({
-        'trip_id': tripId,
+        'assignment_id': tripId,
         'type': type,
         'lat': lat,
         'lng': lng,

@@ -39,8 +39,8 @@ export async function initDB() {
     User.hasMany(ExitLog, { foreignKey: 'user_id' });
     ExitLog.belongsTo(User, { foreignKey: 'user_id' });
 
-    Trip.hasMany(Log, { foreignKey: 'trip_id' });
-    Log.belongsTo(Trip, { foreignKey: 'trip_id' });
+    Trip.hasMany(Log, { foreignKey: 'assignment_id' });
+    Log.belongsTo(Trip, { foreignKey: 'assignment_id' });
 
     // Rename legacy 'trips' table to 'assignments' if needed
     try {
@@ -111,9 +111,9 @@ export async function initDB() {
         console.log("Note: Could not update current_phase ENUM.");
     }
 
-    // Add lat/lng columns to trip_logs if they don't exist
-    await addColumnIfNotExists('trip_logs', 'lat', 'DECIMAL(10, 7) NULL');
-    await addColumnIfNotExists('trip_logs', 'lng', 'DECIMAL(10, 7) NULL');
+    // Add lat/lng columns to assignment_logs if they don't exist
+    await addColumnIfNotExists('assignment_logs', 'lat', 'DECIMAL(10, 7) NULL');
+    await addColumnIfNotExists('assignment_logs', 'lng', 'DECIMAL(10, 7) NULL');
 
     // Add new columns to users table
     const userColumns = [

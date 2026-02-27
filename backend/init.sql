@@ -24,33 +24,59 @@ CREATE TABLE IF NOT EXISTS tasks (
   CONSTRAINT fk_tasks_user FOREIGN KEY (user_id) REFERENCES users(id)
 ) ENGINE=InnoDB;
 
-CREATE TABLE IF NOT EXISTS trips (
+CREATE TABLE IF NOT EXISTS assignments (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   user_id INT UNSIGNED NOT NULL,
+  assigned_by INT UNSIGNED NULL,
   origin_lat DECIMAL(10,7),
   origin_lng DECIMAL(10,7),
   dest_lat DECIMAL(10,7),
   dest_lng DECIMAL(10,7),
+  destination_address VARCHAR(255),
   home_lat DECIMAL(10,7),
   home_lng DECIMAL(10,7),
-  route_polyline TEXT,
-  current_phase ENUM('PLANNED','ACTIVE','RETURNING_HOME','FINALIZED') DEFAULT 'PLANNED',
-  active TINYINT DEFAULT 0,
+  route_polyline LONGTEXT,
+  helmet_image_url VARCHAR(255),
+  helmet_start_image_url VARCHAR(255),
+  helmet_return_image_url VARCHAR(255),
+  is_safety_verified TINYINT(1) DEFAULT 0,
+  exit_reason TEXT,
+  task_title VARCHAR(200),
+  priority ENUM('LOW','MEDIUM','HIGH') DEFAULT 'MEDIUM',
+  geofence_radius INT DEFAULT 100,
+  route_optimization ENUM('FASTEST','SAFEST') DEFAULT 'FASTEST',
+  expected_start_time DATETIME NULL,
+  buffer_time INT DEFAULT 15,
+  actual_start_time DATETIME NULL,
+  actual_end_time DATETIME NULL,
+  current_phase ENUM(
+    'PLANNED',
+    'PENDING',
+    'ACCEPTED',
+    'ACTIVE',
+    'REACHED_DESTINATION',
+    'RETURNING_HOME',
+    'FINALIZED',
+    'COMPLETED'
+  ) DEFAULT 'PENDING',
+  active TINYINT(1) DEFAULT 0,
   created_at TIMESTAMP NULL DEFAULT NULL,
   updated_at TIMESTAMP NULL DEFAULT NULL,
-  INDEX idx_trips_user_id (user_id),
-  CONSTRAINT fk_trips_user FOREIGN KEY (user_id) REFERENCES users(id)
+  INDEX idx_assignments_user_id (user_id),
+  CONSTRAINT fk_assignments_user FOREIGN KEY (user_id) REFERENCES users(id)
 ) ENGINE=InnoDB;
 
-CREATE TABLE IF NOT EXISTS trip_logs (
+CREATE TABLE IF NOT EXISTS assignment_logs (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  trip_id INT UNSIGNED NOT NULL,
+  assignment_id INT UNSIGNED NOT NULL,
   type VARCHAR(50) NOT NULL,
   message VARCHAR(500) NOT NULL,
+  lat DECIMAL(10,7),
+  lng DECIMAL(10,7),
   created_at TIMESTAMP NULL DEFAULT NULL,
   updated_at TIMESTAMP NULL DEFAULT NULL,
-  INDEX idx_trip_logs_trip_id (trip_id),
-  CONSTRAINT fk_trip_logs_trip FOREIGN KEY (trip_id) REFERENCES trips(id)
+  INDEX idx_assignment_logs_assignment_id (assignment_id),
+  CONSTRAINT fk_assignment_logs_assignment FOREIGN KEY (assignment_id) REFERENCES assignments(id)
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS audit_logs (
