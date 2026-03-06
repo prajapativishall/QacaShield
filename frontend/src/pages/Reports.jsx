@@ -353,7 +353,7 @@ export function Reports() {
                 <p><strong>Arrival Time:</strong> {selectedTrip.arrival_time ? new Date(selectedTrip.arrival_time).toLocaleString() : "N/A"}</p>
                 <p><strong>Return Time:</strong> {selectedTrip.return_time
                   ? new Date(selectedTrip.return_time).toLocaleString()
-                  : (selectedTrip.exit_reason ? "Early exit (return not started)" : "N/A")}</p>
+                  : "N/A"}</p>
                 <p><strong>Completion Time:</strong> {selectedTrip.actual_end_time ? new Date(selectedTrip.actual_end_time).toLocaleString() : "Not completed"}</p>
                 <p><strong>Time Taken:</strong> {calculateDuration(selectedTrip)}</p>
                 {selectedTrip.exit_reason && (
