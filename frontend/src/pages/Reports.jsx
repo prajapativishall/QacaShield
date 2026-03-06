@@ -133,15 +133,33 @@ export function Reports() {
     if (!trip) return "N/A";
     const { actual_start_time, arrival_time, return_time, actual_end_time, exit_reason } = trip;
 
-    if (!actual_start_time || !arrival_time) return "N/A";
-
+    if (!actual_start_time) return "N/A";
     const start = new Date(actual_start_time);
+    const isEarlyExit = !!exit_reason;
+
+    // Early exit: use arrival_time if present, otherwise fall back to completion time
+    if (isEarlyExit) {
+      const endForEarly = arrival_time
+        ? new Date(arrival_time)
+        : (actual_end_time ? new Date(actual_end_time) : null);
+
+      if (!endForEarly || endForEarly < start) return "N/A";
+
+      const minutes = Math.max(0, Math.floor((endForEarly - start) / 60000));
+      const hours = Math.floor(minutes / 60);
+      const mins = minutes % 60;
+
+      if (hours > 0) return `${hours}h ${mins}m`;
+      return `${mins}m`;
+    }
+
+    // Normal flow: need arrival_time at minimum
+    if (!arrival_time) return "N/A";
+
     const arrival = new Date(arrival_time);
     let totalMinutes = Math.max(0, Math.floor((arrival - start) / 60000));
 
-    const isEarlyExit = !!exit_reason;
-
-    if (!isEarlyExit && return_time && actual_end_time) {
+    if (return_time && actual_end_time) {
       const ret = new Date(return_time);
       const end = new Date(actual_end_time);
       if (end >= ret) {
