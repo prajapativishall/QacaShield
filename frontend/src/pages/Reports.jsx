@@ -350,11 +350,17 @@ export function Reports() {
               <div className="detail-section">
                 <h4>Completion Data</h4>
                 <p><strong>Start Time:</strong> {selectedTrip.actual_start_time ? new Date(selectedTrip.actual_start_time).toLocaleString() : "Not started"}</p>
-                <p><strong>Arrival Time:</strong> {selectedTrip.arrival_time ? new Date(selectedTrip.arrival_time).toLocaleString() : "N/A"}</p>
+                <p><strong>Arrival Time:</strong> {selectedTrip.arrival_time
+                  ? new Date(selectedTrip.arrival_time).toLocaleString()
+                  : (selectedTrip.exit_reason && selectedTrip.actual_end_time
+                      ? new Date(selectedTrip.actual_end_time).toLocaleString()
+                      : "N/A")}</p>
                 <p><strong>Return Time:</strong> {selectedTrip.return_time
                   ? new Date(selectedTrip.return_time).toLocaleString()
                   : "N/A"}</p>
-                <p><strong>Completion Time:</strong> {selectedTrip.actual_end_time ? new Date(selectedTrip.actual_end_time).toLocaleString() : "Not completed"}</p>
+                {!selectedTrip.exit_reason && (
+                  <p><strong>Completion Time:</strong> {selectedTrip.actual_end_time ? new Date(selectedTrip.actual_end_time).toLocaleString() : "Not completed"}</p>
+                )}
                 <p><strong>Time Taken:</strong> {calculateDuration(selectedTrip)}</p>
                 {selectedTrip.exit_reason && (
                   <p><strong>Early Exit Reason:</strong> {selectedTrip.exit_reason}</p>
