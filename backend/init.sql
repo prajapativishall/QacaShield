@@ -49,6 +49,8 @@ CREATE TABLE IF NOT EXISTS assignments (
   buffer_time INT DEFAULT 15,
   actual_start_time DATETIME NULL,
   actual_end_time DATETIME NULL,
+  arrival_time DATETIME NULL,
+  return_time DATETIME NULL,
   current_phase ENUM(
     'PLANNED',
     'PENDING',

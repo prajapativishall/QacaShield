@@ -129,17 +129,29 @@ export function Reports() {
     setSelectedTrip(null);
   };
 
-  const calculateDuration = (start, end) => {
-    if (!start || !end) return "N/A";
-    const startTime = new Date(start);
-    const endTime = new Date(end);
-    const diff = endTime - startTime; // in ms
-    if (diff < 0) return "N/A";
-    
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    
+  const calculateDuration = (trip) => {
+    if (!trip) return "N/A";
+    const { actual_start_time, arrival_time, return_time, actual_end_time, exit_reason } = trip;
+
+    if (!actual_start_time || !arrival_time) return "N/A";
+
+    const start = new Date(actual_start_time);
+    const arrival = new Date(arrival_time);
+    let totalMinutes = Math.max(0, Math.floor((arrival - start) / 60000));
+
+    const isEarlyExit = !!exit_reason;
+
+    if (!isEarlyExit && return_time && actual_end_time) {
+      const ret = new Date(return_time);
+      const end = new Date(actual_end_time);
+      if (end >= ret) {
+        totalMinutes += Math.max(0, Math.floor((end - ret) / 60000));
+      }
+    }
+
+    const hours = Math.floor(totalMinutes / 60);
+    const mins = totalMinutes % 60;
+
     if (hours > 0) return `${hours}h ${mins}m`;
     return `${mins}m`;
   };
@@ -320,8 +332,15 @@ export function Reports() {
               <div className="detail-section">
                 <h4>Completion Data</h4>
                 <p><strong>Start Time:</strong> {selectedTrip.actual_start_time ? new Date(selectedTrip.actual_start_time).toLocaleString() : "Not started"}</p>
+                <p><strong>Arrival Time:</strong> {selectedTrip.arrival_time ? new Date(selectedTrip.arrival_time).toLocaleString() : "N/A"}</p>
+                <p><strong>Return Time:</strong> {selectedTrip.return_time
+                  ? new Date(selectedTrip.return_time).toLocaleString()
+                  : (selectedTrip.exit_reason ? "Early exit (return not started)" : "N/A")}</p>
                 <p><strong>Completion Time:</strong> {selectedTrip.actual_end_time ? new Date(selectedTrip.actual_end_time).toLocaleString() : "Not completed"}</p>
-                <p><strong>Time Taken:</strong> {calculateDuration(selectedTrip.actual_start_time, selectedTrip.actual_end_time)}</p>
+                <p><strong>Time Taken:</strong> {calculateDuration(selectedTrip)}</p>
+                {selectedTrip.exit_reason && (
+                  <p><strong>Early Exit Reason:</strong> {selectedTrip.exit_reason}</p>
+                )}
               </div>
 
               <div className="detail-section">

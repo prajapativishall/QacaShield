@@ -304,6 +304,7 @@ export async function reachDestination(req, res) {
     }
 
     trip.current_phase = "REACHED_DESTINATION";
+    trip.arrival_time = new Date();
     // Keep active = true because assignment isn't over
     await trip.save();
 
@@ -340,7 +341,7 @@ export async function startReturnTrip(req, res) {
         `${trip.home_lat},${trip.home_lng}`
     );
     trip.route_polyline = polyline;
-
+    trip.return_time = new Date();
     trip.current_phase = "RETURNING_HOME";
     await trip.save();
 

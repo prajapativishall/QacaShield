@@ -32,6 +32,8 @@ export const Trip = sequelize.define(
     // Completion Data
     actual_start_time: { type: DataTypes.DATE, allowNull: true },
     actual_end_time: { type: DataTypes.DATE, allowNull: true },
+    arrival_time: { type: DataTypes.DATE, allowNull: true },
+    return_time: { type: DataTypes.DATE, allowNull: true },
     
     current_phase: {
       type: DataTypes.ENUM("PLANNED", "PENDING", "ACCEPTED", "ACTIVE", "REACHED_DESTINATION", "RETURNING_HOME", "FINALIZED", "COMPLETED"),
