@@ -313,7 +313,7 @@ export async function cancelTrip(req, res) {
     res.json({ ok: true, message: "Assignment cancelled successfully" });
   } catch (error) {
     console.error("Error cancelling assignment:", error);
-    res.status(500).json({ error: "Failed to cancel assignment" });
+    res.status(500).json({ error: "Failed to cancel assignment: " + error.message });
   }
 }
 
