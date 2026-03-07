@@ -161,6 +161,31 @@
     flex: 1;
 }
 
+.alerts-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.alerts-tab {
+    flex: 1;
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid #e5e7eb;
+    background: #f9fafb;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    color: #4b5563;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.alerts-tab.active {
+    background: #fee2e2;
+    color: #b91c1c;
+    border-color: #fecaca;
+}
+
 .alert-item {
     background-color: #FEF2F2;
     border-left: 4px solid #EF4444;

@@ -15,6 +15,7 @@ export function DashboardSummary() {
   });
   const [alerts, setAlerts] = useState([]);
   const [showModal, setShowModal] = useState(false);
+  const [alertTab, setAlertTab] = useState("active");
 
   useEffect(() => {
     if (!token) return;
@@ -56,11 +57,23 @@ export function DashboardSummary() {
         }
 
         if (alertsRes && alertsRes.ok) {
-            const data = await alertsRes.json();
-            if (Array.isArray(data)) {
-                safetyAlertCount = data.length;
-                recentAlerts = data;
-            }
+          const data = await alertsRes.json();
+          if (Array.isArray(data)) {
+            const now = new Date();
+            const cutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+            // Active SOS alerts in last 24 hours
+            const activeAlerts = data.filter((alert) => {
+              const ts = new Date(alert.createdAt || alert.created_at);
+              if (Number.isNaN(ts.getTime())) return false;
+              const isRecent = ts >= cutoff;
+              const msg = (alert.message || "").toUpperCase();
+              const isSos = msg.includes("SOS");
+              return isRecent && isSos;
+            });
+
+            safetyAlertCount = activeAlerts.length;
+            recentAlerts = data;
+          }
         }
 
         if (completedRes && completedRes.ok) {
@@ -146,43 +159,89 @@ export function DashboardSummary() {
     </div>
 
     {showModal && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
-            <div className="modal-content" onClick={e => e.stopPropagation()}>
-                <div className="modal-header">
-                    <h3>Safety Alerts Log</h3>
-                    <button className="close-button" onClick={() => setShowModal(false)}>&times;</button>
+      <div className="modal-overlay" onClick={() => setShowModal(false)}>
+        <div className="modal-content" onClick={e => e.stopPropagation()}>
+          <div className="modal-header">
+            <h3>Safety Alerts</h3>
+            <button className="close-button" onClick={() => setShowModal(false)}>&times;</button>
+          </div>
+
+          <div className="alerts-tabs">
+            <button
+              className={`alerts-tab ${alertTab === "active" ? "active" : ""}`}
+              onClick={() => setAlertTab("active")}
+            >
+              Active (Last 24h SOS)
+            </button>
+            <button
+              className={`alerts-tab ${alertTab === "history" ? "active" : ""}`}
+              onClick={() => setAlertTab("history")}
+            >
+              History
+            </button>
+          </div>
+
+          <div className="alerts-list">
+            {(() => {
+              if (!alerts.length) {
+                return <p>No alerts.</p>;
+              }
+
+              const now = new Date();
+              const cutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+              const activeAlerts = alerts.filter((alert) => {
+                const ts = new Date(alert.createdAt || alert.created_at);
+                if (Number.isNaN(ts.getTime())) return false;
+                const isRecent = ts >= cutoff;
+                const msg = (alert.message || "").toUpperCase();
+                const isSos = msg.includes("SOS");
+                return isRecent && isSos;
+              });
+
+              const visible = alertTab === "active" ? activeAlerts : alerts;
+
+              if (!visible.length) {
+                return (
+                  <p>
+                    {alertTab === "active"
+                      ? "No active SOS alerts in the last 24 hours."
+                      : "No alerts in history."}
+                  </p>
+                );
+              }
+
+              return visible.map((alert) => (
+                <div key={alert.id} className="alert-item">
+                  <div className="alert-item-header">
+                    <span>
+                      Assignment #{alert.trip_id}
+                      {alert.Trip?.User?.name ? ` - ${alert.Trip.User.name}` : ""}
+                    </span>
+                    <span>
+                      {new Date(
+                        alert.createdAt || alert.created_at
+                      ).toLocaleString()}
+                    </span>
+                  </div>
+                  <div>{alert.message}</div>
+                  {alert.lat && alert.lng && (
+                    <div className="alert-location">
+                      <a
+                        href={`https://www.google.com/maps/search/?api=1&query=${alert.lat},${alert.lng}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        View Location ({alert.lat}, {alert.lng})
+                      </a>
+                    </div>
+                  )}
                 </div>
-                <div className="alerts-list">
-                    {alerts.length === 0 ? (
-                        <p>No active alerts.</p>
-                    ) : (
-                        alerts.map(alert => (
-                            <div key={alert.id} className="alert-item">
-                                <div className="alert-item-header">
-                                    <span>
-                                        Assignment #{alert.trip_id} 
-                                        {alert.Trip?.User?.name ? ` - ${alert.Trip.User.name}` : ''}
-                                    </span>
-                                    <span>{new Date(alert.createdAt || alert.created_at).toLocaleTimeString()}</span>
-                                </div>
-                                <div>{alert.message}</div>
-                                {alert.lat && alert.lng && (
-                                    <div className="alert-location">
-                                        <a 
-                                            href={`https://www.google.com/maps/search/?api=1&query=${alert.lat},${alert.lng}`} 
-                                            target="_blank" 
-                                            rel="noopener noreferrer"
-                                        >
-                                            View Location ({alert.lat}, {alert.lng})
-                                        </a>
-                                    </div>
-                                )}
-                            </div>
-                        ))
-                    )}
-                </div>
-            </div>
+              ));
+            })()}
+          </div>
         </div>
+      </div>
     )}
     </>
   );
