@@ -17,6 +17,7 @@ import {
   getCompletedTripsCount,
   getMyCompletedTrips,
   earlyExitTrip,
+  cancelTrip,
   geocode,
   geocodeSuggestionsHandler
 } from "../controllers/tripController.js";
@@ -37,6 +38,7 @@ router.post("/reach-destination", requireRole(["USER", "MANAGER", "ADMIN"]), rea
 router.post("/return-home", requireRole(["USER", "MANAGER", "ADMIN"]), startReturnTrip);
 router.post("/complete", requireRole(["USER", "MANAGER", "ADMIN"]), completeTrip);
 router.post("/early-exit", requireRole(["USER", "MANAGER", "ADMIN"]), earlyExitTrip);
+router.post("/cancel", requireRole(["ADMIN"]), cancelTrip);
 router.get("/best-route", bestRoute);
 router.get("/geocode", geocode);
 router.get("/geocode-suggestions", geocodeSuggestionsHandler);

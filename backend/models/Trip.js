@@ -36,7 +36,17 @@ export const Trip = sequelize.define(
     return_time: { type: DataTypes.DATE, allowNull: true },
     
     current_phase: {
-      type: DataTypes.ENUM("PLANNED", "PENDING", "ACCEPTED", "ACTIVE", "REACHED_DESTINATION", "RETURNING_HOME", "FINALIZED", "COMPLETED"),
+      type: DataTypes.ENUM(
+        "PLANNED",
+        "PENDING",
+        "ACCEPTED",
+        "ACTIVE",
+        "REACHED_DESTINATION",
+        "RETURNING_HOME",
+        "FINALIZED",
+        "COMPLETED",
+        "CANCELLED"
+      ),
       defaultValue: "PENDING", // Changed default to PENDING
     },
     active: { type: DataTypes.BOOLEAN, defaultValue: false }

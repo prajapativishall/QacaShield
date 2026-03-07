@@ -106,7 +106,17 @@ export async function initDB() {
         await sequelize.query(`
             ALTER TABLE assignments 
             MODIFY COLUMN current_phase 
-            ENUM('PLANNED', 'PENDING', 'ACCEPTED', 'ACTIVE', 'REACHED_DESTINATION', 'RETURNING_HOME', 'FINALIZED', 'COMPLETED') 
+            ENUM(
+              'PLANNED',
+              'PENDING',
+              'ACCEPTED',
+              'ACTIVE',
+              'REACHED_DESTINATION',
+              'RETURNING_HOME',
+              'FINALIZED',
+              'COMPLETED',
+              'CANCELLED'
+            ) 
             DEFAULT 'PENDING'
         `);
     } catch (e) {

@@ -104,7 +104,7 @@ export async function getMyTrips(req, res) {
   const trips = await Trip.findAll({
     where: { 
       user_id: userId,
-      current_phase: { [Op.notIn]: ["COMPLETED", "FINALIZED"] },
+      current_phase: { [Op.notIn]: ["COMPLETED", "FINALIZED", "CANCELLED"] },
       [Op.or]: [
         { active: true },
         { current_phase: "PENDING" },
@@ -290,6 +290,30 @@ export async function earlyExitTrip(req, res) {
   } catch (error) {
     console.error("Error marking early exit:", error);
     res.status(500).json({ error: "Failed to mark early exit" });
+  }
+}
+
+export async function cancelTrip(req, res) {
+  try {
+    const { tripId } = req.body;
+    if (!tripId) return res.status(400).json({ error: "Missing tripId" });
+
+    const trip = await Trip.findByPk(tripId);
+    if (!trip) return res.status(404).json({ error: "Assignment not found" });
+
+    if (["COMPLETED", "FINALIZED", "CANCELLED"].includes(trip.current_phase)) {
+      return res.status(400).json({ error: "Assignment is already finished" });
+    }
+
+    trip.current_phase = "CANCELLED";
+    trip.active = false;
+    trip.actual_end_time = new Date();
+    await trip.save();
+
+    res.json({ ok: true, message: "Assignment cancelled successfully" });
+  } catch (error) {
+    console.error("Error cancelling assignment:", error);
+    res.status(500).json({ error: "Failed to cancel assignment" });
   }
 }
 

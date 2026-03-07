@@ -278,6 +278,7 @@
   border-top: 1px solid var(--border-color);
   display: flex;
   justify-content: flex-end;
+  gap: 0.5rem;
 }
 
 .btn-secondary {
@@ -294,4 +295,20 @@
 .btn-secondary:hover {
   background: var(--bg-body);
   border-color: var(--text-secondary);
+}
+
+.btn-danger {
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-md);
+  border: 1px solid #fecaca;
+  background: #fee2e2;
+  color: #b91c1c;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.btn-danger:hover {
+  background: #fecaca;
+  border-color: #ef4444;
 }

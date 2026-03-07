@@ -59,7 +59,7 @@ const AutocompleteInput = ({ suggestions, value, onChange, name, placeholder }) 
 };
 
 export function Reports() {
-  const { token, logout } = useAuth();
+  const { token, logout, user } = useAuth();
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -127,6 +127,43 @@ export function Reports() {
 
   const closeModal = () => {
     setSelectedTrip(null);
+  };
+
+  const handleCancelAssignment = async () => {
+    if (!selectedTrip) return;
+    const confirmed = window.confirm("Are you sure you want to cancel this assignment?");
+    if (!confirmed) return;
+
+    try {
+      const res = await fetch(`${API_URL}/api/assignments/cancel`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ tripId: selectedTrip.id })
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || "Failed to cancel assignment");
+        return;
+      }
+
+      const updated = {
+        ...selectedTrip,
+        current_phase: "CANCELLED",
+        active: false
+      };
+
+      setSelectedTrip(updated);
+      setAssignments(prev =>
+        prev.map(t => (t.id === updated.id ? updated : t))
+      );
+    } catch (e) {
+      console.error("Cancel assignment error:", e);
+      alert("Error cancelling assignment");
+    }
   };
 
   const calculateDuration = (trip) => {
@@ -416,6 +453,11 @@ export function Reports() {
               </div>
             </div>
             <div className="modal-footer">
+              {user?.role === 'ADMIN' && !['COMPLETED','FINALIZED','CANCELLED'].includes(selectedTrip.current_phase) && (
+                <button className="btn-danger" onClick={handleCancelAssignment}>
+                  Cancel Assignment
+                </button>
+              )}
               <button className="btn-secondary" onClick={closeModal}>Close</button>
             </div>
           </div>
