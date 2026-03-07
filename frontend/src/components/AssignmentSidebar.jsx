@@ -40,7 +40,7 @@ export function AssignmentSidebar({ isOpen, onClose }) {
     }
 
     // Check Cooling Period (8 hours)
-    if (lastTrip && lastTrip.actual_end_time) {
+    if (lastTrip && lastTrip.actual_end_time && lastTrip.current_phase !== 'CANCELLED') {
         const endTime = new Date(lastTrip.actual_end_time);
         const now = new Date();
         const diffHours = (now - endTime) / (1000 * 60 * 60);
