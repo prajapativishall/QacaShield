@@ -16,9 +16,13 @@ router.post("/fcm-token", requireRole([]), updateFcmToken);
 
 // Only Managers and Admins can see the employee list for assignment
 router.get("/", requireRole(["ADMIN", "MANAGER"]), listUsers);
-router.post("/", requireRole(["ADMIN", "MANAGER"]), createUser);
 router.get("/:id", requireRole(["ADMIN", "MANAGER"]), getUserById);
-router.put("/:id", requireRole(["ADMIN", "MANAGER"]), updateUser);
+
+// Only Admin can create or update users (including activate/deactivate)
+router.post("/", requireRole(["ADMIN"]), createUser);
+router.put("/:id", requireRole(["ADMIN"]), updateUser);
+
+// Only Admin can delete users
 router.delete("/:id", requireRole(["ADMIN"]), deleteUser);
 
 export default router;

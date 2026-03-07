@@ -310,7 +310,9 @@ export function UserManagement() {
                 onChange={(e) => setEmpIdFilter(e.target.value)}
                 style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
             />
-            <button className="btn-primary" onClick={handleCreate}>+ Add User</button>
+            {currentUser?.role === 'ADMIN' && (
+              <button className="btn-primary" onClick={handleCreate}>+ Add User</button>
+            )}
         </div>
       </div>
 
@@ -351,16 +353,26 @@ export function UserManagement() {
                   )}
                 </td>
                 <td style={{ textAlign: 'center' }}>
+                  {currentUser?.role === 'ADMIN' ? (
                     <button 
                       className={`status-toggle-btn ${u.is_active === false ? 'deactive' : 'active'}`}
                       onClick={() => toggleStatus(u)}
                     >
-                        {u.is_active === false ? 'Deactive' : 'Active'}
+                      {u.is_active === false ? 'Deactive' : 'Active'}
                     </button>
+                  ) : (
+                    <span className={`status-pill ${u.is_active === false ? 'deactive' : 'active'}`}>
+                      {u.is_active === false ? 'Deactive' : 'Active'}
+                    </span>
+                  )}
                 </td>
                 <td className="action-buttons">
-                  <button onClick={() => handleEdit(u)} className="btn-icon edit" title="Edit">✏️</button>
-                  <button onClick={() => handleDelete(u.id)} className="btn-icon delete" title="Delete">🗑️</button>
+                  {currentUser?.role === 'ADMIN' && (
+                    <>
+                      <button onClick={() => handleEdit(u)} className="btn-icon edit" title="Edit">✏️</button>
+                      <button onClick={() => handleDelete(u.id)} className="btn-icon delete" title="Delete">🗑️</button>
+                    </>
+                  )}
                 </td>
               </tr>
             ))}
