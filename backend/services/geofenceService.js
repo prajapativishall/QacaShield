@@ -1,4 +1,5 @@
 import { Trip } from "../models/Trip.js";
+import { Log } from "../models/Log.js";
 
 export function startReturnHomeMonitor(sequelize, io) {
   const intervalMs = Number(process.env.RETURN_HOME_INTERVAL_MS || 10000);
@@ -19,6 +20,16 @@ export function startReturnHomeMonitor(sequelize, io) {
         trip.active = false;
         trip.actual_end_time = new Date();
         await trip.save();
+        try {
+          const assignmentId = trip.task_title || `#${trip.id}`;
+          await Log.create({
+            assignment_id: trip.id,
+            type: "STATUS",
+            message: `Assignment ${assignmentId} finalized (auto return home)`
+          });
+        } catch (e) {
+          console.error("Failed to log finalized status:", e.message);
+        }
         io.to(`trip:${trip.id}`).emit("tripFinalized", { tripId: trip.id });
       }
     }

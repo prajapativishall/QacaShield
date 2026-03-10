@@ -7,46 +7,35 @@ export async function getRecentActivities(req, res) {
     try {
         const limit = 10;
 
-        // 1. Fetch recent assignments (Assignment Created)
+        // Recent assignment creations
         const recentAssignments = await Trip.findAll({
             order: [['created_at', 'DESC']],
-            limit: limit,
+            limit,
             include: [{ model: User, attributes: ['name'] }]
         });
 
-        // 2. Fetch recent starts (Assignment Started)
-        const recentStarts = await Trip.findAll({
-            where: { 
-                actual_start_time: { [Op.ne]: null } 
-            },
-            order: [['actual_start_time', 'DESC']],
-            limit: limit,
-            include: [{ model: User, attributes: ['name'] }]
+        // Recent status changes (any phase change we log)
+        const statusLogs = await Log.findAll({
+            where: { type: "STATUS" },
+            order: [['created_at', 'DESC']],
+            limit,
+            include: [{
+                model: Trip,
+                include: [{ model: User, attributes: ['name'] }]
+            }]
         });
 
-        // 3. Fetch recent completions (Assignment Completed)
-        const recentCompletions = await Trip.findAll({
-            where: { 
-                current_phase: { [Op.or]: ["COMPLETED", "FINALIZED"] }, 
-                actual_end_time: { [Op.ne]: null } 
-            },
-            order: [['actual_end_time', 'DESC']],
-            limit: limit,
-            include: [{ model: User, attributes: ['name'] }]
-        });
-
-        // 4. Fetch recent alerts (Logs with type 'ALERT')
+        // Recent alerts (SOS / safety)
         const recentAlerts = await Log.findAll({
             where: { type: "ALERT" },
             order: [['created_at', 'DESC']],
-            limit: limit,
+            limit,
             include: [{ 
                 model: Trip, 
                 include: [{ model: User, attributes: ['name'] }] 
             }]
         });
 
-        // 5. Normalize
         const activities = [];
 
         recentAssignments.forEach(trip => {
@@ -61,27 +50,16 @@ export async function getRecentActivities(req, res) {
             });
         });
 
-        recentStarts.forEach(trip => {
-            const assignmentId = trip.task_title || `#${trip.id}`;
+        statusLogs.forEach(log => {
+            const trip = log.Trip;
+            const assignmentId = trip?.task_title || `#${trip?.id || log.assignment_id}`;
             activities.push({
-                id: `start-${trip.id}`,
-                type: 'STARTED',
-                title: 'Assignment Started',
-                description: `Assignment ${assignmentId} started by ${trip.User?.name || 'Unknown'}`,
-                timestamp: trip.actual_start_time,
-                meta: { tripId: trip.id }
-            });
-        });
-
-        recentCompletions.forEach(trip => {
-            const assignmentId = trip.task_title || `#${trip.id}`;
-            activities.push({
-                id: `complete-${trip.id}`,
-                type: 'COMPLETION',
-                title: 'Assignment Completed',
-                description: `Assignment ${assignmentId} completed by ${trip.User?.name || 'Unknown'}`,
-                timestamp: trip.actual_end_time,
-                meta: { tripId: trip.id }
+                id: `status-${log.id}`,
+                type: 'STATUS',
+                title: 'Assignment Status',
+                description: log.message,
+                timestamp: log.createdAt,
+                meta: { tripId: log.assignment_id, user: trip?.User?.name }
             });
         });
 
@@ -92,13 +70,12 @@ export async function getRecentActivities(req, res) {
                 title: 'Safety Alert',
                 description: log.message,
                 timestamp: log.createdAt,
-                meta: { tripId: log.trip_id, user: log.Trip?.User?.name }
+                meta: { tripId: log.assignment_id, user: log.Trip?.User?.name }
             });
         });
 
-        // 5. Sort and Slice
         activities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-        const finalActivities = activities.slice(0, 10);
+        const finalActivities = activities.slice(0, limit);
 
         res.json(finalActivities);
 

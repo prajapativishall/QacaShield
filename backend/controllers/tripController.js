@@ -1,5 +1,6 @@
 import { Trip } from "../models/Trip.js";
 import { User } from "../models/User.js";
+import { Log } from "../models/Log.js";
 import { fetchBestRoutePolyline, getRouteFromCoords, geocodeAddress, geocodeSuggestions } from "../services/routingService.js";
 import { sendPushNotification } from "../services/notificationService.js";
 import { Op } from "sequelize";
@@ -96,6 +97,17 @@ export async function createTrip(req, res) {
     console.error("Failed to send push notification:", notifError);
   }
 
+  try {
+    const assignmentId = trip.task_title || `#${trip.id}`;
+    await Log.create({
+      assignment_id: trip.id,
+      type: "STATUS",
+      message: `Assignment ${assignmentId} created`
+    });
+  } catch (e) {
+    console.error("Failed to log assignment creation:", e.message);
+  }
+
   res.status(201).json({ id: trip.id });
 }
 
@@ -181,6 +193,17 @@ export async function acceptTrip(req, res) {
     trip.current_phase = "ACCEPTED";
     await trip.save();
 
+    try {
+      const assignmentId = trip.task_title || `#${trip.id}`;
+      await Log.create({
+        assignment_id: trip.id,
+        type: "STATUS",
+        message: `Assignment ${assignmentId} accepted`
+      });
+    } catch (e) {
+      console.error("Failed to log accept status:", e.message);
+    }
+
     res.json({ ok: true, message: "Assignment accepted successfully" });
   } catch (error) {
     console.error("Error accepting trip:", error);
@@ -226,6 +249,17 @@ export async function startTrip(req, res) {
     trip.actual_start_time = new Date();
     await trip.save();
 
+    try {
+      const assignmentId = trip.task_title || `#${trip.id}`;
+      await Log.create({
+        assignment_id: trip.id,
+        type: "STATUS",
+        message: `Assignment ${assignmentId} started`
+      });
+    } catch (e) {
+      console.error("Failed to log start status:", e.message);
+    }
+
     res.json({ ok: true, message: "Assignment started successfully" });
   } catch (error) {
     console.error("Error starting trip:", error);
@@ -253,6 +287,17 @@ export async function completeTrip(req, res) {
     trip.active = false;
     trip.actual_end_time = new Date();
     await trip.save();
+
+    try {
+      const assignmentId = trip.task_title || `#${trip.id}`;
+      await Log.create({
+        assignment_id: trip.id,
+        type: "STATUS",
+        message: `Assignment ${assignmentId} completed`
+      });
+    } catch (e) {
+      console.error("Failed to log completion status:", e.message);
+    }
 
     res.json({ ok: true, message: "Assignment completed successfully" });
   } catch (error) {
@@ -286,6 +331,17 @@ export async function earlyExitTrip(req, res) {
     trip.actual_end_time = new Date();
     await trip.save();
 
+    try {
+      const assignmentId = trip.task_title || `#${trip.id}`;
+      await Log.create({
+        assignment_id: trip.id,
+        type: "STATUS",
+        message: `Assignment ${assignmentId} marked early exit (${reason})`
+      });
+    } catch (e) {
+      console.error("Failed to log early-exit status:", e.message);
+    }
+
     res.json({ ok: true, message: "Assignment marked as early exit" });
   } catch (error) {
     console.error("Error marking early exit:", error);
@@ -310,6 +366,17 @@ export async function cancelTrip(req, res) {
     trip.actual_end_time = new Date();
     await trip.save();
 
+    try {
+      const assignmentId = trip.task_title || `#${trip.id}`;
+      await Log.create({
+        assignment_id: trip.id,
+        type: "STATUS",
+        message: `Assignment ${assignmentId} cancelled`
+      });
+    } catch (e) {
+      console.error("Failed to log cancel status:", e.message);
+    }
+
     res.json({ ok: true, message: "Assignment cancelled successfully" });
   } catch (error) {
     console.error("Error cancelling assignment:", error);
@@ -331,6 +398,17 @@ export async function reachDestination(req, res) {
     trip.arrival_time = new Date();
     // Keep active = true because assignment isn't over
     await trip.save();
+
+    try {
+      const assignmentId = trip.task_title || `#${trip.id}`;
+      await Log.create({
+        assignment_id: trip.id,
+        type: "STATUS",
+        message: `Assignment ${assignmentId} reached destination`
+      });
+    } catch (e) {
+      console.error("Failed to log reached-destination status:", e.message);
+    }
 
     res.json({ ok: true, message: "Reached destination" });
   } catch (error) {
@@ -368,6 +446,17 @@ export async function startReturnTrip(req, res) {
     trip.return_time = new Date();
     trip.current_phase = "RETURNING_HOME";
     await trip.save();
+
+    try {
+      const assignmentId = trip.task_title || `#${trip.id}`;
+      await Log.create({
+        assignment_id: trip.id,
+        type: "STATUS",
+        message: `Assignment ${assignmentId} started return trip`
+      });
+    } catch (e) {
+      console.error("Failed to log return-trip status:", e.message);
+    }
 
     res.json({ ok: true, message: "Return trip started" });
   } catch (error) {
