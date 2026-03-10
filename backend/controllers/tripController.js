@@ -384,14 +384,41 @@ export async function cancelTrip(req, res) {
   }
 }
 
+function haversineKm(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const toRad = (v) => (v * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) *
+      Math.cos(toRad(lat2)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
 export async function reachDestination(req, res) {
   try {
-    const { tripId } = req.body;
+    const { tripId, lat, lng } = req.body;
     const trip = await Trip.findByPk(tripId);
     if (!trip) return res.status(404).json({ error: "Assignment not found" });
 
     if (trip.current_phase !== "ACTIVE") {
       return res.status(400).json({ error: "Assignment must be ACTIVE to reach destination" });
+    }
+
+    if (lat !== undefined && lng !== undefined && trip.dest_lat && trip.dest_lng) {
+      const dist = haversineKm(
+        Number(lat),
+        Number(lng),
+        Number(trip.dest_lat),
+        Number(trip.dest_lng)
+      );
+      if (dist > 0.2) {
+        return res.status(400).json({ error: "Too far from destination to mark arrival" });
+      }
     }
 
     trip.current_phase = "REACHED_DESTINATION";
@@ -505,8 +532,8 @@ export async function offlineSync(req, res) {
 export async function updateGpsPing(req, res) {
   const { lat, lng } = req.body;
   const trip = req.trip;
-  trip.dest_lat = lat;
-  trip.dest_lng = lng;
+  trip.current_lat = lat;
+  trip.current_lng = lng;
   await trip.save();
   res.json({ ok: true });
 }

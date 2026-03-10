@@ -63,16 +63,13 @@ export function LiveMonitor() {
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
           
-          {activeTrips.map(trip => (
-             // Only show if we have coordinates. Assuming dest_lat/lng is current position for tracking? 
-             // Or origin_lat/lng if just started. 
-             // The prompt implies we can see them.
-             // If updateGpsPing updates dest_lat/lng (which is weird, but tripController.js does `trip.dest_lat = lat`),
-             // then we use dest_lat/lng as current position.
-             (trip.dest_lat && trip.dest_lng) && (
+          {activeTrips.map(trip => {
+             const lat = trip.current_lat ?? trip.dest_lat;
+             const lng = trip.current_lng ?? trip.dest_lng;
+             return (lat && lng) ? (
                 <Marker 
                   key={trip.id} 
-                  position={[trip.dest_lat, trip.dest_lng]}
+                  position={[lat, lng]}
                 >
                   <Popup>
                     <div style={{ minWidth: "200px" }}>
@@ -178,8 +175,8 @@ export function LiveMonitor() {
                     </div>
                   </Popup>
                 </Marker>
-             )
-          ))}
+             ) : null;
+          })}
         </LeafletMap>
       </div>
       

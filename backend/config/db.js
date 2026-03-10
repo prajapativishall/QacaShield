@@ -100,6 +100,8 @@ export async function initDB() {
     await addColumnIfNotExists('assignments', 'actual_end_time', 'DATETIME NULL');
     await addColumnIfNotExists('assignments', 'arrival_time', 'DATETIME NULL');
     await addColumnIfNotExists('assignments', 'return_time', 'DATETIME NULL');
+    await addColumnIfNotExists('assignments', 'current_lat', 'DECIMAL(10, 7) NULL');
+    await addColumnIfNotExists('assignments', 'current_lng', 'DECIMAL(10, 7) NULL');
 
     // Update ENUM for current_phase on assignments table
     try {

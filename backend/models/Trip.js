@@ -34,6 +34,8 @@ export const Trip = sequelize.define(
     actual_end_time: { type: DataTypes.DATE, allowNull: true },
     arrival_time: { type: DataTypes.DATE, allowNull: true },
     return_time: { type: DataTypes.DATE, allowNull: true },
+    current_lat: { type: DataTypes.DECIMAL(10, 7), allowNull: true },
+    current_lng: { type: DataTypes.DECIMAL(10, 7), allowNull: true },
     
     current_phase: {
       type: DataTypes.ENUM(

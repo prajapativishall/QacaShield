@@ -51,6 +51,8 @@ CREATE TABLE IF NOT EXISTS assignments (
   actual_end_time DATETIME NULL,
   arrival_time DATETIME NULL,
   return_time DATETIME NULL,
+  current_lat DECIMAL(10,7),
+  current_lng DECIMAL(10,7),
   current_phase ENUM(
     'PLANNED',
     'PENDING',

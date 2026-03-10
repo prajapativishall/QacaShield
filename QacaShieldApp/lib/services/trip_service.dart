@@ -199,17 +199,23 @@ class TripService {
     }
   }
 
-  Future<void> reachDestination(int tripId) async {
+  Future<void> reachDestination(int tripId, {double? lat, double? lng}) async {
     final url = Uri.parse(
       '${AppConstants.baseUrl}/assignments/reach-destination',
     );
+    final Map<String, dynamic> body = {'tripId': tripId};
+    if (lat != null && lng != null) {
+      body['lat'] = lat;
+      body['lng'] = lng;
+    }
+
     final response = await http.post(
       url,
       headers: {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
       },
-      body: json.encode({'tripId': tripId}),
+      body: json.encode(body),
     );
 
     if (response.statusCode != 200) {

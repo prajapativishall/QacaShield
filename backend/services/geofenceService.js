@@ -8,10 +8,10 @@ export function startReturnHomeMonitor(sequelize, io) {
       where: { current_phase: "RETURNING_HOME", active: true }
     });
     for (const trip of trips) {
-      if (!trip.home_lat || !trip.home_lng || !trip.dest_lat || !trip.dest_lng) continue;
+      if (!trip.home_lat || !trip.home_lng || !trip.current_lat || !trip.current_lng) continue;
       const dist = haversine(
-        Number(trip.dest_lat),
-        Number(trip.dest_lng),
+        Number(trip.current_lat),
+        Number(trip.current_lng),
         Number(trip.home_lat),
         Number(trip.home_lng)
       );

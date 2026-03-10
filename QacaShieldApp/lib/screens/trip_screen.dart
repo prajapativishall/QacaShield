@@ -522,7 +522,12 @@ class _TripScreenState extends State<TripScreen> {
   Future<void> _reachDestination() async {
     final authService = Provider.of<AuthService>(context, listen: false);
     try {
-      await TripService(authService.token!).reachDestination(widget.trip['id']);
+      final loc = await _location.getLocation();
+      await TripService(authService.token!).reachDestination(
+        widget.trip['id'],
+        lat: loc.latitude,
+        lng: loc.longitude,
+      );
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Marked as Arrived at Destination")),
       );
