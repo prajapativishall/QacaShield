@@ -24,6 +24,18 @@ class _ProfileTabState extends State<ProfileTab> {
   String _selectedRole = 'USER';
   String? _profilePicUrl;
 
+  ImageProvider? _buildProfileImage() {
+    if (_profilePicUrl == null || _profilePicUrl!.isEmpty) return null;
+    final url = _profilePicUrl!;
+    if (url.startsWith('http')) {
+      return NetworkImage(url);
+    }
+    if (url.startsWith('/uploads')) {
+      return NetworkImage('${AppConstants.staticBaseUrl}$url');
+    }
+    return NetworkImage('${AppConstants.staticBaseUrl}/$url');
+  }
+
   @override
   void initState() {
     super.initState();
@@ -156,12 +168,7 @@ class _ProfileTabState extends State<ProfileTab> {
                   child: CircleAvatar(
                     radius: 55,
                     backgroundColor: Colors.grey.shade200,
-                    backgroundImage:
-                        _profilePicUrl != null && _profilePicUrl!.isNotEmpty
-                        ? NetworkImage(
-                            '${AppConstants.staticBaseUrl}$_profilePicUrl',
-                          )
-                        : null,
+                    backgroundImage: _buildProfileImage(),
                     child: (_profilePicUrl == null || _profilePicUrl!.isEmpty)
                         ? Icon(
                             Icons.person,
@@ -178,23 +185,6 @@ class _ProfileTabState extends State<ProfileTab> {
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF1A237E), // Dark blue from image
-                  ),
-                ),
-                SizedBox(height: 20),
-                // Dots indicator like in image
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(
-                    5,
-                    (index) => Container(
-                      width: 8,
-                      height: 8,
-                      margin: EdgeInsets.symmetric(horizontal: 4),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: index == 0 ? Colors.grey : Colors.grey.shade300,
-                      ),
-                    ),
                   ),
                 ),
                 SizedBox(height: 30),
