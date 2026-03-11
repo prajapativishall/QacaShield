@@ -33,7 +33,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
     try {
       final trips = await _tripsFuture;
-      final completed = await TripService(authService.token!).fetchMyCompletedTrips();
+      final completed = await TripService(
+        authService.token!,
+      ).fetchMyCompletedTrips();
       setState(() {
         _completedTrips = completed;
       });
@@ -114,15 +116,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _selectedIndex == 0
-          ? SafeArea(child: _buildAssignmentsTab())
-          : _buildProfileTab(),
+      body: () {
+        if (_selectedIndex == 0) {
+          return SafeArea(child: _buildAssignmentsTab());
+        }
+        if (_selectedIndex == 1) {
+          return SafeArea(child: _buildHistoryTab());
+        }
+        return _buildProfileTab();
+      }(),
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
             icon: Icon(Icons.assignment_outlined),
             activeIcon: Icon(Icons.assignment),
             label: 'Assignments',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.history_toggle_off),
+            activeIcon: Icon(Icons.history),
+            label: 'History',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person_outline),
@@ -277,235 +290,300 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       separatorBuilder: (ctx, i) => SizedBox(height: 16),
                       itemBuilder: (context, index) {
                         final trip = trips[index];
-                    final isVerified =
-                        trip['is_safety_verified'] == true ||
-                        trip['is_safety_verified'] == 1;
+                        final isVerified =
+                            trip['is_safety_verified'] == true ||
+                            trip['is_safety_verified'] == 1;
 
                         return Card(
-                      elevation: 2,
-                      shadowColor: Colors.black12,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(16),
-                        onTap: () {
-                          String phase = trip['current_phase'] ?? 'PLANNED';
+                          elevation: 2,
+                          shadowColor: Colors.black12,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(16),
+                            onTap: () {
+                              String phase = trip['current_phase'] ?? 'PLANNED';
 
-                          // If Accepted but not verified/started -> Safety Check
-                          if (phase == 'ACCEPTED') {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    SafetyCheckScreen(trip: trip),
+                              // If Accepted but not verified/started -> Safety Check
+                              if (phase == 'ACCEPTED') {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        SafetyCheckScreen(trip: trip),
+                                  ),
+                                ).then((_) => _refreshTrips());
+                              } else {
+                                // PENDING, ACTIVE, COMPLETED -> Trip Screen
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        TripScreen(trip: trip),
+                                  ),
+                                ).then((_) => _refreshTrips());
+                              }
+                            },
+                            child: Padding(
+                              padding: EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Container(
+                                            padding: EdgeInsets.all(10),
+                                            decoration: BoxDecoration(
+                                              color: AppConstants.primaryColor
+                                                  .withOpacity(0.1),
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: Icon(
+                                              Icons.local_shipping_outlined,
+                                              color: AppConstants.primaryColor,
+                                            ),
+                                          ),
+                                          SizedBox(width: 12),
+                                          Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                'Assignment ID: ${trip['task_title'] ?? trip['id']}',
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 14,
+                                                  color: AppConstants
+                                                      .secondaryColor,
+                                                ),
+                                              ),
+                                              SizedBox(height: 4),
+                                              Container(
+                                                padding: EdgeInsets.symmetric(
+                                                  horizontal: 8,
+                                                  vertical: 4,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color:
+                                                      (trip['current_phase'] ==
+                                                              'ACTIVE' ||
+                                                          trip['active'] ==
+                                                              true)
+                                                      ? Colors.green
+                                                            .withOpacity(0.1)
+                                                      : (trip['current_phase'] ==
+                                                            'ACCEPTED')
+                                                      ? Colors.orange
+                                                            .withOpacity(0.1)
+                                                      : (trip['current_phase'] ==
+                                                                'PENDING' ||
+                                                            trip['current_phase'] ==
+                                                                'PLANNED')
+                                                      ? Colors.blue.withOpacity(
+                                                          0.1,
+                                                        )
+                                                      : Colors.grey.withOpacity(
+                                                          0.1,
+                                                        ),
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                ),
+                                                child: Text(
+                                                  (trip['current_phase'] ==
+                                                              'ACTIVE' ||
+                                                          trip['active'] ==
+                                                              true)
+                                                      ? 'In Progress'
+                                                      : (trip['current_phase'] ==
+                                                            'ACCEPTED')
+                                                      ? 'Pending Safety Check'
+                                                      : (trip['current_phase'] ==
+                                                                'PENDING' ||
+                                                            trip['current_phase'] ==
+                                                                'PLANNED')
+                                                      ? 'Pending Acceptance'
+                                                      : 'Completed',
+                                                  style: TextStyle(
+                                                    color:
+                                                        (trip['current_phase'] ==
+                                                                'ACTIVE' ||
+                                                            trip['active'] ==
+                                                                true)
+                                                        ? Colors.green.shade700
+                                                        : (trip['current_phase'] ==
+                                                              'ACCEPTED')
+                                                        ? Colors.orange.shade800
+                                                        : (trip['current_phase'] ==
+                                                                  'PENDING' ||
+                                                              trip['current_phase'] ==
+                                                                  'PLANNED')
+                                                        ? Colors.blue.shade700
+                                                        : Colors.grey.shade700,
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                      Icon(
+                                        Icons.chevron_right,
+                                        color: Colors.grey.shade400,
+                                      ),
+                                    ],
+                                  ),
+                                  Divider(
+                                    height: 24,
+                                    thickness: 1,
+                                    color: Colors.grey.shade100,
+                                  ),
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.location_on_outlined,
+                                        size: 16,
+                                        color: Colors.grey,
+                                      ),
+                                      SizedBox(width: 4),
+                                      Expanded(
+                                        child: Text(
+                                          'Destination: ${trip['destination_address'] ?? '${trip['dest_lat']}, ${trip['dest_lng']}'}',
+                                          style: TextStyle(
+                                            color: Colors.grey.shade700,
+                                            fontSize: 13,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
-                            ).then((_) => _refreshTrips());
-                          } else {
-                            // PENDING, ACTIVE, COMPLETED -> Trip Screen
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHistoryTab() {
+    return Column(
+      children: [
+        _buildGreetingHeader(),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: _refreshTrips,
+            color: AppConstants.primaryColor,
+            child: _completedTrips.isEmpty
+                ? ListView(
+                    physics: AlwaysScrollableScrollPhysics(),
+                    children: [
+                      SizedBox(
+                        height: MediaQuery.of(context).size.height * 0.25,
+                      ),
+                      Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.history_toggle_off,
+                              size: 80,
+                              color: Colors.grey.shade400,
+                            ),
+                            SizedBox(height: 16),
+                            Text(
+                              'No completed assignments yet',
+                              style: TextStyle(
+                                fontSize: 18,
+                                color: Colors.grey.shade600,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              'Pull down to refresh',
+                              style: TextStyle(color: Colors.grey.shade400),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  )
+                : ListView.builder(
+                    physics: AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    itemCount: _completedTrips.length,
+                    itemBuilder: (context, index) {
+                      final trip = _completedTrips[index];
+                      return Card(
+                        elevation: 1,
+                        shadowColor: Colors.black12,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: ListTile(
+                          onTap: () {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
                                 builder: (context) => TripScreen(trip: trip),
                               ),
                             ).then((_) => _refreshTrips());
-                          }
-                        },
-                        child: Padding(
-                          padding: EdgeInsets.all(16),
-                          child: Column(
+                          },
+                          leading: Icon(
+                            Icons.check_circle,
+                            color: Colors.green,
+                          ),
+                          title: Text(
+                            'Assignment ID: ${trip['task_title'] ?? trip['id']}',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                              color: AppConstants.secondaryColor,
+                            ),
+                          ),
+                          subtitle: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Container(
-                                        padding: EdgeInsets.all(10),
-                                        decoration: BoxDecoration(
-                                          color: AppConstants.primaryColor
-                                              .withOpacity(0.1),
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: Icon(
-                                          Icons.local_shipping_outlined,
-                                          color: AppConstants.primaryColor,
-                                        ),
-                                      ),
-                                      SizedBox(width: 12),
-                                      Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            'Assignment ID: ${trip['task_title'] ?? trip['id']}',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 14,
-                                              color:
-                                                  AppConstants.secondaryColor,
-                                            ),
-                                          ),
-                                          SizedBox(height: 4),
-                                          Container(
-                                            padding: EdgeInsets.symmetric(
-                                              horizontal: 8,
-                                              vertical: 4,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color:
-                                                  (trip['current_phase'] ==
-                                                          'ACTIVE' ||
-                                                      trip['active'] == true)
-                                                  ? Colors.green.withOpacity(
-                                                      0.1,
-                                                    )
-                                                  : (trip['current_phase'] ==
-                                                        'ACCEPTED')
-                                                  ? Colors.orange.withOpacity(
-                                                      0.1,
-                                                    )
-                                                  : (trip['current_phase'] ==
-                                                            'PENDING' ||
-                                                        trip['current_phase'] ==
-                                                            'PLANNED')
-                                                  ? Colors.blue.withOpacity(0.1)
-                                                  : Colors.grey.withOpacity(
-                                                      0.1,
-                                                    ),
-                                              borderRadius:
-                                                  BorderRadius.circular(8),
-                                            ),
-                                            child: Text(
-                                              (trip['current_phase'] ==
-                                                          'ACTIVE' ||
-                                                      trip['active'] == true)
-                                                  ? 'In Progress'
-                                                  : (trip['current_phase'] ==
-                                                        'ACCEPTED')
-                                                  ? 'Pending Safety Check'
-                                                  : (trip['current_phase'] ==
-                                                            'PENDING' ||
-                                                        trip['current_phase'] ==
-                                                            'PLANNED')
-                                                  ? 'Pending Acceptance'
-                                                  : 'Completed',
-                                              style: TextStyle(
-                                                color:
-                                                    (trip['current_phase'] ==
-                                                            'ACTIVE' ||
-                                                        trip['active'] == true)
-                                                    ? Colors.green.shade700
-                                                    : (trip['current_phase'] ==
-                                                          'ACCEPTED')
-                                                    ? Colors.orange.shade800
-                                                    : (trip['current_phase'] ==
-                                                              'PENDING' ||
-                                                          trip['current_phase'] ==
-                                                              'PLANNED')
-                                                    ? Colors.blue.shade700
-                                                    : Colors.grey.shade700,
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                  Icon(
-                                    Icons.chevron_right,
-                                    color: Colors.grey.shade400,
-                                  ),
-                                ],
+                              SizedBox(height: 4),
+                              Text(
+                                'Completed at: ${trip['actual_end_time'] != null ? DateFormat('dd MMM, hh:mm a').format(DateTime.parse(trip['actual_end_time'])) : 'N/A'}',
+                                style: TextStyle(fontSize: 12),
                               ),
-                              Divider(
-                                height: 24,
-                                thickness: 1,
-                                color: Colors.grey.shade100,
-                              ),
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.location_on_outlined,
-                                    size: 16,
-                                    color: Colors.grey,
-                                  ),
-                                  SizedBox(width: 4),
-                                  Expanded(
-                                    child: Text(
-                                      'Destination: ${trip['destination_address'] ?? '${trip['dest_lat']}, ${trip['dest_lng']}'}',
-                                      style: TextStyle(
-                                        color: Colors.grey.shade700,
-                                        fontSize: 13,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                              if (trip['destination_address'] != null)
+                                Text(
+                                  'Destination: ${trip['destination_address']}',
+                                  style: TextStyle(fontSize: 12),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                             ],
                           ),
-                        ),
-                      ),
-                        );
-                      },
-                    ),
-                    if (_completedTrips.isNotEmpty) ...[
-                      SizedBox(height: 24),
-                      Text(
-                        'Completed Assignments',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: AppConstants.secondaryColor,
-                        ),
-                      ),
-                      SizedBox(height: 12),
-                      ..._completedTrips.map((trip) {
-                        return Card(
-                          elevation: 1,
-                          shadowColor: Colors.black12,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                          trailing: Icon(
+                            Icons.chevron_right,
+                            color: Colors.grey.shade400,
                           ),
-                          child: ListTile(
-                            leading: Icon(Icons.check_circle, color: Colors.green),
-                            title: Text(
-                              'Assignment ID: ${trip['task_title'] ?? trip['id']}',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14,
-                                color: AppConstants.secondaryColor,
-                              ),
-                            ),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                SizedBox(height: 4),
-                                Text(
-                                  'Completed at: ${trip['actual_end_time'] != null ? DateFormat('dd MMM, hh:mm a').format(DateTime.parse(trip['actual_end_time'])) : 'N/A'}',
-                                  style: TextStyle(fontSize: 12),
-                                ),
-                                if (trip['destination_address'] != null)
-                                  Text(
-                                    'Destination: ${trip['destination_address']}',
-                                    style: TextStyle(fontSize: 12),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                              ],
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ],
-                  ],
-                );
-              },
-            ),
+                        ),
+                      );
+                    },
+                  ),
           ),
         ),
       ],
