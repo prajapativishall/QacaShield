@@ -15,7 +15,12 @@ export function startReturnHomeMonitor(sequelize, io) {
         Number(trip.home_lat),
         Number(trip.home_lng)
       );
-      if (dist <= 0.1) {
+      const radiusMeters =
+        typeof trip.geofence_radius === "number" && !Number.isNaN(trip.geofence_radius)
+          ? trip.geofence_radius
+          : 100;
+      const radiusKm = Math.max(radiusMeters, 10) / 1000; // minimum 10m
+      if (dist <= radiusKm) {
         trip.current_phase = "FINALIZED";
         trip.active = false;
         trip.actual_end_time = new Date();
