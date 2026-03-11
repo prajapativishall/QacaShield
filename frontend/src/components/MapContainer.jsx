@@ -1,8 +1,36 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { GoogleMap, Marker, Polyline, useJsApiLoader } from "@react-google-maps/api";
+import { MapContainer as LeafletMap, TileLayer, Polyline, Marker, Popup, useMap } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
+import L from "leaflet";
 import { useSocket } from "../hooks/useSocket.js";
 import { API_URL } from "../apiConfig.js";
 import "../styles/MapContainer.css";
+
+// Fix Leaflet marker icons
+import icon from "leaflet/dist/images/marker-icon.png";
+import iconShadow from "leaflet/dist/images/marker-shadow.png";
+
+let DefaultIcon = L.icon({
+  iconUrl: icon,
+  shadowUrl: iconShadow,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+});
+
+L.Marker.prototype.options.icon = DefaultIcon;
+
+// Helper component to center map on route or position
+function MapUpdater({ center, bounds }) {
+  const map = useMap();
+  useEffect(() => {
+    if (bounds) {
+      map.fitBounds(bounds);
+    } else if (center) {
+      map.setView(center, map.getZoom());
+    }
+  }, [center, bounds, map]);
+  return null;
+}
 
 export function MapContainer({ viewOnly = false, routePath: propRoutePath = null, bounds: propBounds = null, markers = [] }) {
   const socket = useSocket();
@@ -13,7 +41,6 @@ export function MapContainer({ viewOnly = false, routePath: propRoutePath = null
   const [currentPos, setCurrentPos] = useState({ lat: 37.7749, lng: -122.4194 }); // Default SF
   const [mapCenter, setMapCenter] = useState({ lat: 37.7749, lng: -122.4194 });
   const [mapBounds, setMapBounds] = useState(null);
-  const [mapInstance, setMapInstance] = useState(null);
 
   // Use props if provided, otherwise local state
   const routePath = propRoutePath || localRoutePath;
@@ -30,11 +57,6 @@ export function MapContainer({ viewOnly = false, routePath: propRoutePath = null
       socket.off("tripFinalized");
     };
   }, [socket]);
-
-  const { isLoaded } = useJsApiLoader({
-    id: "qacashield-google-maps",
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || ""
-  });
 
   useEffect(() => {
     if (!navigator.geolocation) return;
@@ -108,37 +130,27 @@ export function MapContainer({ viewOnly = false, routePath: propRoutePath = null
       )}
       
       <div className="map-container">
-        {isLoaded && (
-          <GoogleMap
-            mapContainerStyle={{ height: "100%", width: "100%" }}
-            center={mapCenter}
-            zoom={13}
-            onLoad={(map) => {
-              setMapInstance(map);
-              if (activeBounds) {
-                const bounds = new window.google.maps.LatLngBounds();
-                activeBounds.forEach(([lat, lng]) =>
-                  bounds.extend({ lat, lng })
-                );
-                map.fitBounds(bounds);
-              }
-            }}
-          >
-            <Marker position={currentPos} />
-            {customMarkers.map((m, idx) => (
-              <Marker key={idx} position={m.position} label={m.label} />
-            ))}
-            {routePath.length > 0 && (
-              <Polyline
-                path={routePath.map(([lat, lng]) => ({ lat, lng }))}
-                options={{ strokeColor: "#ff6a00", strokeWeight: 5 }}
-              />
-            )}
-          </GoogleMap>
-        )}
-        {!isLoaded && (
-          <div style={{ padding: 16 }}>Loading Google Maps…</div>
-        )}
+        <LeafletMap center={mapCenter} zoom={13} style={{ height: "100%", width: "100%" }}>
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
+          <MapUpdater center={mapCenter} bounds={activeBounds} />
+          
+          <Marker position={currentPos}>
+            <Popup>Current Location</Popup>
+          </Marker>
+
+          {customMarkers.map((m, idx) => (
+            <Marker key={idx} position={m.position}>
+              <Popup>{m.label}</Popup>
+            </Marker>
+          ))}
+
+          {routePath.length > 0 && (
+            <Polyline positions={routePath} color="#ff6a00" weight={5} opacity={0.9} />
+          )}
+        </LeafletMap>
       </div>
     </div>
   );

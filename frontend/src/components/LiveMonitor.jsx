@@ -1,8 +1,22 @@
-import React, { useEffect, useState } from "react";
-import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
+import React, { useEffect, useState, useMemo } from "react";
+import { MapContainer as LeafletMap, TileLayer, Marker, Popup } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
+import L from "leaflet";
 import { useAuth } from "../context/AuthContext.jsx";
 import { API_URL } from "../apiConfig.js";
-import "../styles/MapContainer.css";
+import "../styles/MapContainer.css"; // Reuse map styles
+
+// Fix Leaflet marker icons
+import icon from "leaflet/dist/images/marker-icon.png";
+import iconShadow from "leaflet/dist/images/marker-shadow.png";
+
+let DefaultIcon = L.icon({
+  iconUrl: icon,
+  shadowUrl: iconShadow,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+});
+L.Marker.prototype.options.icon = DefaultIcon;
 
 export function LiveMonitor() {
   const { token } = useAuth();
@@ -38,40 +52,132 @@ export function LiveMonitor() {
     }
   };
 
-  const center = { lat: 37.7749, lng: -122.4194 };
-
-  const { isLoaded } = useJsApiLoader({
-    id: "qacashield-google-maps-live",
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || ""
-  });
+  const center = { lat: 37.7749, lng: -122.4194 }; // Default center
 
   return (
     <div className="map-wrapper" style={{ height: "calc(100vh - 80px)" }}>
       <div className="map-container">
-        {isLoaded && (
-          <GoogleMap
-            mapContainerStyle={{ height: "100%", width: "100%" }}
-            center={center}
-            zoom={5}
-          >
-            {activeTrips.map(trip => {
-              const lat = trip.current_lat ?? trip.dest_lat;
-              const lng = trip.current_lng ?? trip.dest_lng;
-              if (!lat || !lng) return null;
-              const label = trip.User?.name ? trip.User.name[0] : undefined;
-              return (
-                <Marker
-                  key={trip.id}
-                  position={{ lat, lng }}
-                  label={label}
-                />
-              );
-            })}
-          </GoogleMap>
-        )}
-        {!isLoaded && (
-          <div style={{ padding: 16 }}>Loading Google Maps…</div>
-        )}
+        <LeafletMap center={center} zoom={5} style={{ height: "100%", width: "100%" }}>
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
+          
+          {activeTrips.map(trip => {
+             const lat = trip.current_lat ?? trip.dest_lat;
+             const lng = trip.current_lng ?? trip.dest_lng;
+             return (lat && lng) ? (
+                <Marker 
+                  key={trip.id} 
+                  position={[lat, lng]}
+                >
+                  <Popup>
+                    <div style={{ minWidth: "200px" }}>
+                      <h3>Assignment #{trip.id}</h3>
+                      <p><strong>Driver:</strong> {trip.User?.name || "Unknown"}</p>
+                      <p><strong>Status:</strong> {trip.current_phase}</p>
+                      {trip.is_safety_verified ? (
+                         <div style={{ marginTop: "10px" }}>
+                            <div style={{ 
+                                background: "#e8f5e9", 
+                                color: "#2e7d32", 
+                                padding: "4px", 
+                                borderRadius: "4px", 
+                                marginBottom: "8px",
+                                textAlign: "center",
+                                fontWeight: "bold"
+                            }}>
+                                ✅ Safety Verified
+                            </div>
+                            {(trip.helmet_start_image_url || trip.helmet_return_image_url || trip.helmet_image_url) && (
+                              <>
+                                {trip.helmet_start_image_url && resolveHelmetUrl(trip.helmet_start_image_url) && (
+                                  <div style={{ marginBottom: "8px" }}>
+                                    <strong style={{ fontSize: "0.8rem" }}>Start of Assignment</strong>
+                                    <div style={{ 
+                                      marginTop: "4px",
+                                      borderRadius: "6px",
+                                      overflow: "hidden",
+                                      border: "1px solid #ddd",
+                                      background: "#000"
+                                    }}>
+                                      <img
+                                        src={resolveHelmetUrl(trip.helmet_start_image_url)}
+                                        alt="Helmet Start"
+                                        style={{ 
+                                          display: "block",
+                                          maxWidth: "100%",
+                                          maxHeight: "160px",
+                                          width: "auto",
+                                          height: "auto",
+                                          objectFit: "contain"
+                                        }}
+                                      />
+                                    </div>
+                                  </div>
+                                )}
+                                {trip.helmet_return_image_url && resolveHelmetUrl(trip.helmet_return_image_url) && (
+                                  <div>
+                                    <strong style={{ fontSize: "0.8rem" }}>Return to Source</strong>
+                                    <div style={{ 
+                                      marginTop: "4px",
+                                      borderRadius: "6px",
+                                      overflow: "hidden",
+                                      border: "1px solid #ddd",
+                                      background: "#000"
+                                    }}>
+                                      <img
+                                        src={resolveHelmetUrl(trip.helmet_return_image_url)}
+                                        alt="Helmet Return"
+                                        style={{ 
+                                          display: "block",
+                                          maxWidth: "100%",
+                                          maxHeight: "160px",
+                                          width: "auto",
+                                          height: "auto",
+                                          objectFit: "contain"
+                                        }}
+                                      />
+                                    </div>
+                                  </div>
+                                )}
+                                {!trip.helmet_start_image_url && !trip.helmet_return_image_url && trip.helmet_image_url && resolveHelmetUrl(trip.helmet_image_url) && (
+                                  <div style={{ 
+                                    marginTop: "4px",
+                                    borderRadius: "6px",
+                                    overflow: "hidden",
+                                    border: "1px solid #ddd",
+                                    background: "#000"
+                                  }}>
+                                    <img
+                                      src={resolveHelmetUrl(trip.helmet_image_url)}
+                                      alt="Helmet"
+                                      style={{ 
+                                        display: "block",
+                                        maxWidth: "100%",
+                                        maxHeight: "160px",
+                                        width: "auto",
+                                        height: "auto",
+                                        objectFit: "contain"
+                                      }}
+                                    />
+                                  </div>
+                                )}
+                              </>
+                            )}
+                            <small style={{ display: "block", marginTop: "4px", color: "#666" }}>
+                                Verified at: {new Date(trip.updated_at).toLocaleTimeString()}
+                            </small>
+                         </div>
+                      ) : (
+                          <div style={{ color: "red", fontWeight: "bold" }}>⚠️ Safety Check Pending</div>
+                      )}
+                    </div>
+                  </Popup>
+                </Marker>
+             ) : null;
+          })}
+        </LeafletMap>
       </div>
       
       {/* Overlay List */}
