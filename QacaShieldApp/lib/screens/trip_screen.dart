@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart' as gmap;
 import 'package:location/location.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -23,6 +24,7 @@ class TripScreen extends StatefulWidget {
 
 class _TripScreenState extends State<TripScreen> {
   final MapController _mapController = MapController();
+  gmap.GoogleMapController? _googleMapController;
   final Location _location = Location();
 
   List<LatLng> _routePoints = [];
@@ -447,7 +449,17 @@ class _TripScreenState extends State<TripScreen> {
       _isNavigationMode = !_isNavigationMode;
     });
     if (_isNavigationMode && _currentLocation != null) {
-      _mapController.moveAndRotate(_currentLocation!, 18.0, 0.0);
+      _googleMapController?.animateCamera(
+        gmap.CameraUpdate.newCameraPosition(
+          gmap.CameraPosition(
+            target: gmap.LatLng(
+              _currentLocation!.latitude,
+              _currentLocation!.longitude,
+            ),
+            zoom: 18.0,
+          ),
+        ),
+      );
     }
   }
 
@@ -663,10 +675,9 @@ class _TripScreenState extends State<TripScreen> {
       ),
       body: Stack(
         children: [
-          FlutterMap(
-            mapController: _mapController,
-            options: MapOptions(
-              initialCenter: LatLng(
+          gmap.GoogleMap(
+            initialCameraPosition: gmap.CameraPosition(
+              target: gmap.LatLng(
                 _toDouble(
                   _currentTrip['origin_lat'] ??
                       _currentTrip['dest_lat'] ??
@@ -678,33 +689,43 @@ class _TripScreenState extends State<TripScreen> {
                       77.2090,
                 ),
               ),
-              initialZoom: 14.0,
+              zoom: 14.0,
             ),
-            children: [
-              TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'com.example.qaca_shield_app',
-              ),
+            onMapCreated: (controller) {
+              _googleMapController = controller;
+            },
+            polylines: {
               if (_routePoints.isNotEmpty)
-                PolylineLayer(
-                  polylines: [
-                    Polyline(
-                      points: _routePoints,
-                      strokeWidth: 5.0,
-                      color: AppConstants.primaryColor,
-                    ),
-                  ],
+                gmap.Polyline(
+                  polylineId: gmap.PolylineId('route'),
+                  points: _routePoints
+                      .map((p) => gmap.LatLng(p.latitude, p.longitude))
+                      .toList(),
+                  color: AppConstants.primaryColor,
+                  width: 5,
                 ),
-              MarkerLayer(markers: _markers),
-              RichAttributionWidget(
-                attributions: [
-                  TextSourceAttribution(
-                    'OpenStreetMap contributors',
-                    onTap: () {}, // Add action if needed
+            },
+            markers: {
+              if (_currentLocation != null)
+                gmap.Marker(
+                  markerId: gmap.MarkerId('me'),
+                  position: gmap.LatLng(
+                    _currentLocation!.latitude,
+                    _currentLocation!.longitude,
                   ),
-                ],
+                  icon: gmap.BitmapDescriptor.defaultMarkerWithHue(
+                    gmap.BitmapDescriptor.hueBlue,
+                  ),
+                ),
+              ..._markers.map(
+                (m) => gmap.Marker(
+                  markerId: gmap.MarkerId(
+                    m.key?.toString() ?? m.point.toString(),
+                  ),
+                  position: gmap.LatLng(m.point.latitude, m.point.longitude),
+                ),
               ),
-            ],
+            },
           ),
 
           // SOS Button (Top Right)
