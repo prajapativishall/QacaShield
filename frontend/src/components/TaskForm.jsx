@@ -457,7 +457,17 @@ export function TaskForm({ selectedUser, onSuccess, onCancel }) {
             {/* Site Geofence Radius Slider */}
             <div className="form-group full-width slider-group">
                 <label>Site Geofence Radius (meters)</label>
-                <div className="slider-container">
+                <div
+                  className="slider-container"
+                  style={{
+                    "--slider-percent": `${
+                      ((formData.geofence_radius - 50) / (1000 - 50)) * 100
+                    }`,
+                  }}
+                >
+                    <div className="slider-value-bubble">
+                      {formData.geofence_radius}m
+                    </div>
                     <input 
                         type="range" 
                         name="geofence_radius" 
@@ -479,12 +489,9 @@ export function TaskForm({ selectedUser, onSuccess, onCancel }) {
                 </button>
             )}
             <button type="button" className="preview-link" onClick={handlePreview}>
-                Preview Destination
+                Preview Destination&nbsp;
+                <span className="radius-inline">{formData.geofence_radius}m</span>
             </button>
-            
-            <div className="radius-display">
-                {formData.geofence_radius}m
-            </div>
 
             <button 
                 type="submit" 

@@ -33,7 +33,22 @@ export async function fetchBestRoutePolyline(origin, destination) {
 }
 
 export async function geocodeAddress(query) {
-    return await geocodeNominatim(query);
+    const trimmed = (query || "").trim();
+    if (!trimmed) return null;
+
+    // Prefer the same tuned search logic we use for suggestions (India‑focused, addressdetails, etc.)
+    try {
+        const suggestions = await geocodeSuggestions(trimmed);
+        if (Array.isArray(suggestions) && suggestions.length > 0) {
+            const top = suggestions[0];
+            return { lat: top.lat, lon: top.lon };
+        }
+    } catch (e) {
+        console.error("geocodeAddress suggestions failed, falling back:", e);
+    }
+
+    // Fallback: generic Nominatim lookup
+    return await geocodeNominatim(trimmed);
 }
 
 export async function geocodeSuggestions(query) {
@@ -44,20 +59,37 @@ export async function geocodeSuggestions(query) {
         return [];
     }
 
+    const lowerFull = trimmed.toLowerCase();
+
+    // Detect common NCR / India city names in free-text queries
+    let cityName = null;
+    if (lowerFull.includes("greater noida")) {
+        cityName = "Greater Noida";
+    } else if (lowerFull.includes("noida")) {
+        cityName = "Noida";
+    } else if (lowerFull.includes("ghaziabad")) {
+        cityName = "Ghaziabad";
+    } else if (lowerFull.includes("gurugram")) {
+        cityName = "Gurugram";
+    } else if (lowerFull.includes("gurgaon")) {
+        cityName = "Gurgaon";
+    } else if (lowerFull.includes("delhi")) {
+        cityName = "Delhi";
+    }
+
     const tokens = trimmed.split(/\s+/);
     let numericPart = null;
-    let cityName = null;
+    // Allow patterns like "62", "Sec 62", "Sec-62"
 
     for (const t of tokens) {
         const lowerToken = t.toLowerCase();
         if (!numericPart && /^(\d{1,3})$/.test(t)) {
             numericPart = t;
         }
-        if (!cityName) {
-            if (lowerToken === "noida") {
-                cityName = "Noida";
-            } else if (lowerToken === "delhi") {
-                cityName = "Delhi";
+        if (!numericPart && (lowerToken.startsWith("sec") || lowerToken.startsWith("sector"))) {
+            const match = lowerToken.match(/(\d{1,3})/);
+            if (match) {
+                numericPart = match[1];
             }
         }
     }
@@ -69,14 +101,24 @@ export async function geocodeSuggestions(query) {
         }
     };
 
-    if (cityName && numericPart && cityName === "Noida") {
+    const cityState = {
+        "Noida": "Uttar Pradesh",
+        "Greater Noida": "Uttar Pradesh",
+        "Ghaziabad": "Uttar Pradesh",
+        "Delhi": "Delhi",
+        "Gurgaon": "Haryana",
+        "Gurugram": "Haryana"
+    };
+
+    if (cityName && numericPart && cityState[cityName]) {
         const sector = numericPart;
-        const structured = `${base}?street=${encodeURIComponent("Sector " + sector)}&city=${encodeURIComponent("Noida")}&state=${encodeURIComponent("Uttar Pradesh")}&country=${encodeURIComponent("India")}&format=json&limit=5&addressdetails=1&countrycodes=in&accept-language=en`;
+        const stateName = cityState[cityName];
+        const structured = `${base}?street=${encodeURIComponent("Sector " + sector)}&city=${encodeURIComponent(cityName)}&state=${encodeURIComponent(stateName)}&country=${encodeURIComponent("India")}&format=json&limit=5&addressdetails=1&countrycodes=in&accept-language=en&bounded=1`;
         addUrl(structured);
 
-        const alt1 = `${base}?q=${encodeURIComponent("Sector " + sector + ", Noida, Uttar Pradesh, India")}&format=json&limit=5&addressdetails=1&countrycodes=in&accept-language=en`;
-        const alt2 = `${base}?q=${encodeURIComponent("Noida Sector " + sector + ", Uttar Pradesh, India")}&format=json&limit=5&addressdetails=1&countrycodes=in&accept-language=en`;
-        const alt3 = `${base}?q=${encodeURIComponent("Sector " + sector + ", Noida")}&format=json&limit=5&addressdetails=1&countrycodes=in&accept-language=en`;
+        const alt1 = `${base}?q=${encodeURIComponent("Sector " + sector + ", " + cityName + ", " + stateName + ", India")}&format=json&limit=5&addressdetails=1&countrycodes=in&accept-language=en`;
+        const alt2 = `${base}?q=${encodeURIComponent(cityName + " Sector " + sector + ", " + stateName + ", India")}&format=json&limit=5&addressdetails=1&countrycodes=in&accept-language=en`;
+        const alt3 = `${base}?q=${encodeURIComponent("Sector " + sector + ", " + cityName)}&format=json&limit=5&addressdetails=1&countrycodes=in&accept-language=en`;
         addUrl(alt1);
         addUrl(alt2);
         addUrl(alt3);
