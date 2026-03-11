@@ -35,6 +35,7 @@ export function RecentActivities() {
     const getIcon = (type) => {
         switch (type) {
             case 'ASSIGNMENT':
+            case 'STATUS_CREATED':
                 return (
                     <div className="activity-icon assignment">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -45,12 +46,36 @@ export function RecentActivities() {
                         </svg>
                     </div>
                 );
-            case 'STATUS':
+            case 'STATUS_ACCEPTED':
+            case 'STATUS_STARTED':
+            case 'STATUS_RETURN':
                 return (
                     <div className="activity-icon started">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <circle cx="12" cy="12" r="10" />
-                            <polyline points="8 12 11 15 16 9" />
+                            <polygon points="10 8 16 12 10 16 10 8" />
+                        </svg>
+                    </div>
+                );
+            case 'STATUS_REACHED':
+            case 'STATUS_COMPLETED':
+            case 'STATUS_FINALIZED':
+            case 'STATUS_EARLY_EXIT':
+                return (
+                    <div className="activity-icon completion">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                            <polyline points="22 4 12 14.01 9 11.01" />
+                        </svg>
+                    </div>
+                );
+            case 'STATUS_CANCELLED':
+                return (
+                    <div className="activity-icon alert">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <line x1="9" y1="9" x2="15" y2="15" />
+                            <line x1="15" y1="9" x2="9" y2="15" />
                         </svg>
                     </div>
                 );

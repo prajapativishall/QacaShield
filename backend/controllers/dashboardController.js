@@ -53,13 +53,51 @@ export async function getRecentActivities(req, res) {
         statusLogs.forEach(log => {
             const trip = log.Trip;
             const assignmentId = trip?.task_title || `#${trip?.id || log.assignment_id}`;
+            const msg = (log.message || "").toLowerCase();
+
+            let type = "STATUS";
+            let title = "Assignment Status";
+
+            if (msg.includes("created")) {
+                type = "STATUS_CREATED";
+                title = "Assignment Created";
+            } else if (msg.includes("accepted")) {
+                type = "STATUS_ACCEPTED";
+                title = "Assignment Accepted";
+            } else if (msg.includes("started return trip")) {
+                type = "STATUS_RETURN";
+                title = "Return Trip Started";
+            } else if (msg.includes("started")) {
+                type = "STATUS_STARTED";
+                title = "Assignment Started";
+            } else if (msg.includes("reached destination")) {
+                type = "STATUS_REACHED";
+                title = "Reached Destination";
+            } else if (msg.includes("completed")) {
+                type = "STATUS_COMPLETED";
+                title = "Assignment Completed";
+            } else if (msg.includes("early exit")) {
+                type = "STATUS_EARLY_EXIT";
+                title = "Early Exit";
+            } else if (msg.includes("cancelled")) {
+                type = "STATUS_CANCELLED";
+                title = "Assignment Cancelled";
+            } else if (msg.includes("finalized")) {
+                type = "STATUS_FINALIZED";
+                title = "Assignment Finalized";
+            }
+
             activities.push({
                 id: `status-${log.id}`,
-                type: 'STATUS',
-                title: 'Assignment Status',
+                type,
+                title,
                 description: log.message,
                 timestamp: log.createdAt,
-                meta: { tripId: log.assignment_id, user: trip?.User?.name }
+                meta: {
+                    tripId: log.assignment_id,
+                    user: trip?.User?.name,
+                    assignmentId
+                }
             });
         });
 
