@@ -8,12 +8,14 @@ export function startReturnHomeMonitor(sequelize, io) {
       where: { current_phase: "RETURNING_HOME", active: true }
     });
     for (const trip of trips) {
-      if (!trip.home_lat || !trip.home_lng || !trip.current_lat || !trip.current_lng) continue;
+      const targetLat = trip.home_lat ?? trip.origin_lat;
+      const targetLng = trip.home_lng ?? trip.origin_lng;
+      if (!targetLat || !targetLng || !trip.current_lat || !trip.current_lng) continue;
       const dist = haversine(
         Number(trip.current_lat),
         Number(trip.current_lng),
-        Number(trip.home_lat),
-        Number(trip.home_lng)
+        Number(targetLat),
+        Number(targetLng)
       );
       const radiusMeters =
         typeof trip.geofence_radius === "number" && !Number.isNaN(trip.geofence_radius)

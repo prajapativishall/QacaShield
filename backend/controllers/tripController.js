@@ -232,6 +232,12 @@ export async function startTrip(req, res) {
 
     // Update Origin if provided (from Mobile App Start Trip)
     if (lat && lng) {
+        // If home location not set, use the first start location as home base
+        if (!trip.home_lat || !trip.home_lng) {
+            trip.home_lat = lat;
+            trip.home_lng = lng;
+        }
+
         trip.origin_lat = lat;
         trip.origin_lng = lng;
 
