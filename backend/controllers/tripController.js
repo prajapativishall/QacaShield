@@ -410,13 +410,18 @@ export async function reachDestination(req, res) {
     }
 
     if (lat !== undefined && lng !== undefined && trip.dest_lat && trip.dest_lng) {
-      const dist = haversineKm(
+      const distKm = haversineKm(
         Number(lat),
         Number(lng),
         Number(trip.dest_lat),
         Number(trip.dest_lng)
       );
-      if (dist > 0.2) {
+      const radiusMeters =
+        typeof trip.geofence_radius === "number" && !Number.isNaN(trip.geofence_radius)
+          ? trip.geofence_radius
+          : 100;
+      const radiusKm = Math.max(radiusMeters, 10) / 1000; // enforce minimum 10m
+      if (distKm > radiusKm) {
         return res.status(400).json({ error: "Too far from destination to mark arrival" });
       }
     }
