@@ -30,8 +30,8 @@ class AppConstants {
   }
 
   // Colors
-  static const Color primaryColor = Color(0xFFFF6A00); // Safety Orange
-  static const Color primaryDark = Color(0xFFE65100);
+  static const Color primaryColor = Color(0xFFEF4444); // Brand Red
+  static const Color primaryDark = Color(0xFFB91C1C);
   static const Color secondaryColor = Color(0xFF0B1F3A); // Navy Blue
   static const Color backgroundColor = Color(0xFFF3F4F6);
   static const Color surfaceColor = Colors.white;

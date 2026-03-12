@@ -43,6 +43,48 @@ export function startReturnHomeMonitor(sequelize, io) {
   }, intervalMs);
 }
 
+export function startDestinationArrivalMonitor(sequelize, io) {
+  const intervalMs = Number(process.env.DESTINATION_ARRIVAL_INTERVAL_MS || 10000);
+  setInterval(async () => {
+    const trips = await Trip.findAll({
+      where: { current_phase: "ACTIVE", active: true }
+    });
+    for (const trip of trips) {
+      if (!trip.dest_lat || !trip.dest_lng || !trip.current_lat || !trip.current_lng) continue;
+
+      const distKm = haversine(
+        Number(trip.current_lat),
+        Number(trip.current_lng),
+        Number(trip.dest_lat),
+        Number(trip.dest_lng)
+      );
+
+      const radiusMeters =
+        typeof trip.geofence_radius === "number" && !Number.isNaN(trip.geofence_radius)
+          ? trip.geofence_radius
+          : 100;
+      const radiusKm = Math.max(radiusMeters, 10) / 1000; // minimum 10m
+
+      if (distKm <= radiusKm) {
+        trip.current_phase = "REACHED_DESTINATION";
+        trip.arrival_time = new Date();
+        await trip.save();
+        try {
+          const assignmentId = trip.task_title || `#${trip.id}`;
+          await Log.create({
+            assignment_id: trip.id,
+            type: "STATUS",
+            message: `Assignment ${assignmentId} reached destination (auto geofence)`
+          });
+        } catch (e) {
+          console.error("Failed to log reached-destination status:", e.message);
+        }
+        io.to(`trip:${trip.id}`).emit("tripReachedDestination", { tripId: trip.id });
+      }
+    }
+  }, intervalMs);
+}
+
 function haversine(lat1, lon1, lat2, lon2) {
   const R = 6371;
   const dLat = toRad(lat2 - lat1);

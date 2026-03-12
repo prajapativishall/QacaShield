@@ -358,16 +358,9 @@ class _TripScreenState extends State<TripScreen> {
     if (destLatVal == 0.0 && destLngVal == 0.0) {
       return;
     }
-    final dest = LatLng(destLatVal, destLngVal);
-    final radius =
-        (_currentTrip['geofence_radius'] is num
-                ? _currentTrip['geofence_radius']
-                : 100)
-            .toDouble();
-    final distance = _distanceInMeters(current, dest);
-    if (distance <= radius) {
-      await _reachDestination();
-    }
+    // Destination auto-marking is disabled for now; arrival will be
+    // controlled explicitly from backend or future flows.
+    return;
   }
 
   Future<void> _startTracking() async {
@@ -437,7 +430,6 @@ class _TripScreenState extends State<TripScreen> {
         }
 
         _checkGeofenceAndComplete(currentLocation);
-        _checkDestinationGeofence(currentLocation);
       }
     });
   }

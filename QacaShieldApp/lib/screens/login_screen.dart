@@ -124,11 +124,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 SizedBox(height: 20),
-                Text(
-                  'Server: ${AppConstants.baseUrl}',
-                  style: TextStyle(color: Colors.grey, fontSize: 12),
-                  textAlign: TextAlign.center,
-                ),
               ],
             ),
           ),

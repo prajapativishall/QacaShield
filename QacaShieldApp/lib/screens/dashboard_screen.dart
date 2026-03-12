@@ -191,10 +191,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ],
           ),
-          IconButton(
-            icon: Icon(Icons.exit_to_app, color: Colors.red),
+          TextButton.icon(
             onPressed: _showExitDialog,
-            tooltip: 'Log Exit',
+            style: TextButton.styleFrom(
+              backgroundColor: Colors.red.withOpacity(0.06),
+              foregroundColor: Colors.red,
+              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
+            icon: Icon(Icons.logout, size: 20),
+            label: Text('Exit', style: TextStyle(fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -378,8 +386,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                                             .withOpacity(0.1)
                                                       : (trip['current_phase'] ==
                                                             'ACCEPTED')
-                                                      ? Colors.orange
-                                                            .withOpacity(0.1)
+                                                      ? Colors.red.withOpacity(
+                                                          0.08,
+                                                        )
                                                       : (trip['current_phase'] ==
                                                                 'PENDING' ||
                                                             trip['current_phase'] ==
@@ -417,7 +426,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                                         ? Colors.green.shade700
                                                         : (trip['current_phase'] ==
                                                               'ACCEPTED')
-                                                        ? Colors.orange.shade800
+                                                        ? Colors.red.shade700
                                                         : (trip['current_phase'] ==
                                                                   'PENDING' ||
                                                               trip['current_phase'] ==
@@ -533,6 +542,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     itemCount: _completedTrips.length,
                     itemBuilder: (context, index) {
                       final trip = _completedTrips[index];
+
+                      String destinationText = 'N/A';
+                      final destAddress = trip['destination_address'];
+                      if (destAddress != null &&
+                          destAddress.toString().trim().isNotEmpty) {
+                        destinationText = destAddress.toString();
+                      } else if (trip['dest_lat'] != null &&
+                          trip['dest_lng'] != null) {
+                        destinationText =
+                            '${trip['dest_lat']}, ${trip['dest_lng']}';
+                      }
+
                       return Card(
                         elevation: 1,
                         shadowColor: Colors.black12,
@@ -540,14 +561,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: ListTile(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => TripScreen(trip: trip),
-                              ),
-                            ).then((_) => _refreshTrips());
-                          },
                           leading: Icon(
                             Icons.check_circle,
                             color: Colors.green,
@@ -568,17 +581,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 'Completed at: ${trip['actual_end_time'] != null ? DateFormat('dd MMM, hh:mm a').format(DateTime.parse(trip['actual_end_time'])) : 'N/A'}',
                                 style: TextStyle(fontSize: 12),
                               ),
-                              if (trip['destination_address'] != null)
-                                Text(
-                                  'Destination: ${trip['destination_address']}',
-                                  style: TextStyle(fontSize: 12),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
+                              SizedBox(height: 2),
+                              Text(
+                                'Destination: $destinationText',
+                                style: TextStyle(fontSize: 12),
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ],
-                          ),
-                          trailing: Icon(
-                            Icons.chevron_right,
-                            color: Colors.grey.shade400,
                           ),
                         ),
                       );

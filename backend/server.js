@@ -5,7 +5,7 @@ import cors from "cors";
 import { initDB, sequelize } from "./config/db.js";
 import { initSocket } from "./config/socket.js";
 import apiRouter from "./routes/api.js";
-import { startReturnHomeMonitor } from "./services/geofenceService.js";
+import { startReturnHomeMonitor, startDestinationArrivalMonitor } from "./services/geofenceService.js";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -29,6 +29,7 @@ const io = initSocket(server);
 async function bootstrap() {
   await initDB();
   startReturnHomeMonitor(sequelize, io);
+  startDestinationArrivalMonitor(sequelize, io);
   const port = process.env.PORT || 4000;
   server.listen(port, "0.0.0.0", () => {
     console.log(`QacaShield backend listening on :${port}`);
