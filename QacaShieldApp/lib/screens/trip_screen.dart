@@ -574,7 +574,12 @@ class _TripScreenState extends State<TripScreen> {
                 );
                 final tripService = TripService(authService.token!);
                 final reason = reasonController.text.trim();
-                await tripService.earlyExitTrip(_currentTrip['id'], reason);
+                await tripService.earlyExitTrip(
+                  _currentTrip['id'],
+                  reason,
+                  lat: _currentLocation?.latitude,
+                  lng: _currentLocation?.longitude,
+                );
                 await authService.logExit(reason);
                 if (mounted) {
                   Navigator.pop(context);

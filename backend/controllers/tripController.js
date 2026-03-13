@@ -314,7 +314,7 @@ export async function completeTrip(req, res) {
 
 export async function earlyExitTrip(req, res) {
   try {
-    const { tripId, reason } = req.body;
+    const { tripId, reason, lat, lng } = req.body;
     if (!tripId) return res.status(400).json({ error: "Missing tripId" });
     if (!reason || !reason.trim()) {
       return res.status(400).json({ error: "Missing exit reason" });
@@ -327,7 +327,26 @@ export async function earlyExitTrip(req, res) {
       return res.json({ ok: true, message: "Assignment already completed" });
     }
 
-    if (trip.current_phase !== "REACHED_DESTINATION") {
+    let atDestination = trip.current_phase === "REACHED_DESTINATION";
+
+    if (!atDestination && lat !== undefined && lng !== undefined && trip.dest_lat && trip.dest_lng) {
+      const distKm = haversineKm(
+        Number(lat),
+        Number(lng),
+        Number(trip.dest_lat),
+        Number(trip.dest_lng)
+      );
+      const radiusMeters =
+        typeof trip.geofence_radius === "number" && !Number.isNaN(trip.geofence_radius)
+          ? trip.geofence_radius
+          : 100;
+      const radiusKm = Math.max(radiusMeters, 10) / 1000;
+      if (distKm <= radiusKm) {
+        atDestination = true;
+      }
+    }
+
+    if (!atDestination) {
       return res.status(400).json({ error: "Assignment must be at destination for early exit" });
     }
 
@@ -335,6 +354,9 @@ export async function earlyExitTrip(req, res) {
     trip.current_phase = "COMPLETED";
     trip.active = false;
     trip.actual_end_time = new Date();
+    if (!trip.arrival_time) {
+      trip.arrival_time = new Date();
+    }
     await trip.save();
 
     try {

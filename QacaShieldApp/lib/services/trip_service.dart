@@ -223,15 +223,26 @@ class TripService {
     }
   }
 
-  Future<void> earlyExitTrip(int tripId, String reason) async {
-    final url = Uri.parse('${AppConstants.baseUrl}/trips/early-exit');
+  Future<void> earlyExitTrip(
+    int tripId,
+    String reason, {
+    double? lat,
+    double? lng,
+  }) async {
+    final url = Uri.parse('${AppConstants.baseUrl}/assignments/early-exit');
+    final Map<String, dynamic> body = {'tripId': tripId, 'reason': reason};
+    if (lat != null && lng != null) {
+      body['lat'] = lat;
+      body['lng'] = lng;
+    }
+
     final response = await http.post(
       url,
       headers: {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
       },
-      body: json.encode({'tripId': tripId, 'reason': reason}),
+      body: json.encode(body),
     );
 
     if (response.statusCode != 200) {

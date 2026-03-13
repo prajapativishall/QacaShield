@@ -33,8 +33,37 @@ export async function logExit(req, res) {
         await ExitLog.create({
             user_id: req.user.id,
             reason: reason,
-            // You can store location if you add lat/lng columns to ExitLog in the future
         });
+
+        // Also mark the most recent active assignment (if any) as early exit
+        const activeTrip = await Trip.findOne({
+            where: {
+                user_id: req.user.id,
+                current_phase: { [Op.notIn]: ["COMPLETED", "FINALIZED", "CANCELLED"] },
+            },
+            order: [["created_at", "DESC"]],
+        });
+
+        if (activeTrip) {
+            activeTrip.exit_reason = reason;
+            activeTrip.current_phase = "COMPLETED";
+            activeTrip.active = false;
+            activeTrip.actual_end_time = new Date();
+            if (!activeTrip.arrival_time) {
+                activeTrip.arrival_time = new Date();
+            }
+            await activeTrip.save();
+
+            try {
+                const assignmentId = activeTrip.task_title || `#${activeTrip.id}`;
+                await ExitLog.create({
+                    user_id: req.user.id,
+                    reason: `Assignment ${assignmentId} auto-marked early exit from user exit log`,
+                });
+            } catch (logErr) {
+                console.error("Failed to log assignment early-exit from user exit:", logErr);
+            }
+        }
 
         res.json({ message: "Exit logged successfully" });
     } catch (error) {
