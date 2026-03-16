@@ -64,7 +64,7 @@ export function Reports() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedTrip, setSelectedTrip] = useState(null);
-  const [trackingId, setTrackingId] = useState('');
+  const [trackingTripId, setTrackingTripId] = useState(null);
   const [trackingInfo, setTrackingInfo] = useState(null);
   const trackingRef = useRef(null);
   const [filters, setFilters] = useState({
@@ -287,14 +287,10 @@ export function Reports() {
     }
   };
 
-  const startTracking = () => {
+  const startTrackingFor = (id) => {
     stopTracking();
-    const id = (trackingId || '').trim();
-    if (!id) {
-      setError('Enter an Assignment ID to track');
-      setTimeout(() => setError(null), 3000);
-      return;
-    }
+    if (!id) return;
+    setTrackingTripId(id);
     const poll = async () => {
       try {
         const res = await fetch(`${API_URL}/api/assignments/current-location?tripId=${encodeURIComponent(id)}`, {
@@ -304,7 +300,10 @@ export function Reports() {
           logout();
           return;
         }
-        const data = await res.json();
+        const data = await res.json().catch(async () => {
+          const txt = await res.text().catch(() => '');
+          return { error: txt || 'Non-JSON response' };
+        });
         if (!res.ok) {
           setTrackingInfo({ error: data.error || 'Unable to fetch location' });
           return;
@@ -337,33 +336,6 @@ export function Reports() {
       <h2>Assignments History</h2>
 
       <div className="filters-container">
-        <div className="filter-group" style={{ maxWidth: 280 }}>
-          <label>Track Location (Assignment ID)</label>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <input
-              type="text"
-              value={trackingId}
-              onChange={(e) => setTrackingId(e.target.value)}
-              placeholder="Enter Assignment ID"
-            />
-            <button className="btn-secondary" onClick={startTracking}>Track</button>
-            <button className="btn-secondary" onClick={stopTracking}>Stop</button>
-          </div>
-          {trackingInfo && (
-            <div className="report-card" style={{ marginTop: 8, textAlign: 'left' }}>
-              {trackingInfo.error ? (
-                <div style={{ color: '#b91c1c' }}>Error: {trackingInfo.error}</div>
-              ) : (
-                <>
-                  <div><strong>Phase:</strong> {trackingInfo.phase || 'N/A'}</div>
-                  <div><strong>Active:</strong> {String(trackingInfo.active)}</div>
-                  <div><strong>Lat,Lon:</strong> {trackingInfo.lat ?? 'N/A'}, {trackingInfo.lng ?? 'N/A'}</div>
-                  <div><strong>Updated:</strong> {trackingInfo.updatedAt ? new Date(trackingInfo.updatedAt).toLocaleString() : 'N/A'}</div>
-                </>
-              )}
-            </div>
-          )}
-        </div>
 
         <div className="filter-group">
           <label>Assignment ID</label>
@@ -421,16 +393,42 @@ export function Reports() {
                 <th>Assignment ID</th>
                 <th>Assigned To</th>
                 <th>Assigned By</th>
+                <th>Track</th>
                 <th>Status</th>
                 <th>Created At</th>
               </tr>
             </thead>
             <tbody>
               {filteredAssignments.map(trip => (
-                <tr key={trip.id} onClick={() => handleRowClick(trip)} className="clickable-row">
+                <tr key={trip.id} className="clickable-row">
                   <td>{trip.displayId}</td>
                   <td>{trip.User ? trip.User.name : "Unknown"}</td>
                   <td>{trip.Assigner ? trip.Assigner.name : "System"}</td>
+                  <td onClick={(e) => e.stopPropagation()}>
+                    {trip.displayStatus === 'ACTIVE' ? (
+                      <>
+                        {trackingTripId === trip.id ? (
+                          <div>
+                            <button className="btn-secondary" onClick={stopTracking}>Stop</button>
+                            <div style={{ fontSize: '0.85rem', marginTop: 4 }}>
+                              {trackingInfo?.error ? (
+                                <span style={{ color: '#b91c1c' }}>{trackingInfo.error}</span>
+                              ) : (
+                                <>
+                                  <div><strong>Lat,Lon:</strong> {trackingInfo?.lat ?? '…'}, {trackingInfo?.lng ?? '…'}</div>
+                                  <div><strong>Updated:</strong> {trackingInfo?.updatedAt ? new Date(trackingInfo.updatedAt).toLocaleString() : '…'}</div>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          <button className="btn-secondary" onClick={() => startTrackingFor(trip.id)}>Track</button>
+                        )}
+                      </>
+                    ) : (
+                      <span style={{ color: '#9CA3AF' }}>N/A</span>
+                    )}
+                  </td>
                   <td>
                     <span
                       className={`status-badge status-${(trip.displayStatus || 'unknown').toLowerCase()}`}
@@ -439,7 +437,7 @@ export function Reports() {
                       {trip.displayStatus}
                     </span>
                   </td>
-                  <td>{new Date(trip.createdAt || trip.created_at).toLocaleString()}</td>
+                  <td onClick={() => handleRowClick(trip)}>{new Date(trip.createdAt || trip.created_at).toLocaleString()}</td>
                 </tr>
               ))}
             </tbody>
