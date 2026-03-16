@@ -305,23 +305,64 @@ export function Reports() {
         try {
           data = await res.json();
         } catch {
-          const txt = await res.text().catch(() => '');
-          setTrackingInfo({
-            error: 'Non-JSON response',
-            status: res.status,
-            statusText: res.statusText,
-            url,
-            bodyPreview: (txt || '').slice(0, 120)
-          });
-          return;
+          // Fallback when server lacks endpoint or returns HTML
+          if (res.status === 404) {
+            try {
+              const altUrl = `${API_URL}/api/assignments/assigned-history?limit=500`;
+              const altRes = await fetch(altUrl, { headers: { Authorization: `Bearer ${token}` } });
+              const list = await altRes.json();
+              const match = Array.isArray(list) ? list.find(t => String(t.id) === String(id)) : null;
+              if (match) {
+                setTrackingInfo({
+                  lat: match.current_lat ?? match.dest_lat ?? null,
+                  lng: match.current_lng ?? match.dest_lng ?? null,
+                  phase: match.current_phase,
+                  active: match.active,
+                  updatedAt: match.updated_at ?? match.created_at,
+                  fallback: true
+                });
+                return;
+              }
+              setTrackingInfo({ error: 'Not found (fallback failed)', status: 404, url: altUrl });
+              return;
+            } catch (e) {
+              setTrackingInfo({ error: 'Non-JSON response and fallback error', url, bodyPreview: 'fallback failed', status: res.status });
+              return;
+            }
+          } else {
+            const txt = await res.text().catch(() => '');
+            setTrackingInfo({
+              error: 'Non-JSON response',
+              status: res.status,
+              statusText: res.statusText,
+              url,
+              bodyPreview: (txt || '').slice(0, 120)
+            });
+            return;
+          }
         }
         if (!res.ok) {
-          setTrackingInfo({
-            error: data.error || 'Unable to fetch location',
-            status: res.status,
-            statusText: res.statusText,
-            url
-          });
+          if (res.status === 404) {
+            // Fallback path (duplicate of above but for JSON 404)
+            try {
+              const altUrl = `${API_URL}/api/assignments/assigned-history?limit=500`;
+              const altRes = await fetch(altUrl, { headers: { Authorization: `Bearer ${token}` } });
+              const list = await altRes.json();
+              const match = Array.isArray(list) ? list.find(t => String(t.id) === String(id)) : null;
+              if (match) {
+                setTrackingInfo({
+                  lat: match.current_lat ?? match.dest_lat ?? null,
+                  lng: match.current_lng ?? match.dest_lng ?? null,
+                  phase: match.current_phase,
+                  active: match.active,
+                  updatedAt: match.updated_at ?? match.created_at,
+                  fallback: true
+                });
+                return;
+              }
+            } catch {}
+          }
+          setTrackingInfo({ error: data.error || 'Unable to fetch location', status: res.status, statusText: res.statusText, url });
           return;
         }
         setTrackingInfo({
