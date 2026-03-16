@@ -341,7 +341,6 @@ export function Reports() {
                 <th>Assignment ID</th>
                 <th>Assigned To</th>
                 <th>Assigned By</th>
-                <th>Destination</th>
                 <th>Status</th>
                 <th>Created At</th>
               </tr>
@@ -352,14 +351,6 @@ export function Reports() {
                   <td>{trip.displayId}</td>
                   <td>{trip.User ? trip.User.name : "Unknown"}</td>
                   <td>{trip.Assigner ? trip.Assigner.name : "System"}</td>
-                  <td>
-                    {(() => {
-                      const addr = (trip.destination_address || "").toString().trim();
-                      const hasCoords = trip.dest_lat != null && trip.dest_lng != null;
-                      const coords = hasCoords ? `${trip.dest_lat}, ${trip.dest_lng}` : "N/A";
-                      return addr ? `${addr} (${coords})` : coords;
-                    })()}
-                  </td>
                   <td>
                     <span
                       className={`status-badge status-${(trip.displayStatus || 'unknown').toLowerCase()}`}
@@ -389,12 +380,6 @@ export function Reports() {
                 <p><strong>Assignment ID:</strong> {generateAssignmentId(selectedTrip)}</p>
                 <p><strong>Assigned To:</strong> {selectedTrip.User ? selectedTrip.User.name : "Unknown"}</p>
                 <p><strong>Assigned By:</strong> {selectedTrip.Assigner ? selectedTrip.Assigner.name : "System"}</p>
-                <p><strong>Destination:</strong> {(() => {
-                  const addr = (selectedTrip.destination_address || "").toString().trim();
-                  const hasCoords = selectedTrip.dest_lat != null && selectedTrip.dest_lng != null;
-                  const coords = hasCoords ? `${selectedTrip.dest_lat}, ${selectedTrip.dest_lng}` : "N/A";
-                  return addr ? `${addr} (${coords})` : coords;
-                })()}</p>
                 <p><strong>Status:</strong> {selectedTrip.current_phase === 'FINALIZED' ? 'COMPLETED' : selectedTrip.current_phase}</p>
                 <p><strong>Created At:</strong> {new Date(selectedTrip.createdAt || selectedTrip.created_at).toLocaleString()}</p>
               </div>
