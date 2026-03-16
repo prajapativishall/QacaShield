@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useAuth } from "../context/AuthContext.jsx";
 import { API_URL } from "../apiConfig.js";
 import "../styles/Reports.css";
-import { MiniTrackerMap } from "../components/MiniTrackerMap.jsx";
 
 const AutocompleteInput = ({ suggestions, value, onChange, name, placeholder }) => {
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -423,32 +422,26 @@ export function Reports() {
                   <td>{trip.Assigner ? trip.Assigner.name : "System"}</td>
                   <td onClick={(e) => e.stopPropagation()}>
                     {trip.displayStatus === 'ACTIVE' ? (
-                      <>
-                        {trackingTripId === trip.id ? (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <MiniTrackerMap lat={trackingInfo?.lat} lng={trackingInfo?.lng} />
-                            <div>
-                              <button className="btn-secondary" onClick={stopTracking} style={{ marginBottom: 6 }}>Stop</button>
-                              <div style={{ fontSize: '0.85rem' }}>
-                                {trackingInfo?.error ? (
-                                  <span style={{ color: '#b91c1c' }}>
-                                    {trackingInfo.error}
-                                    {trackingInfo.status ? ` (${trackingInfo.status} ${trackingInfo.statusText || ''})` : ''}
-                                    {trackingInfo.url ? ` — ${trackingInfo.url}` : ''}
-                                    {trackingInfo.bodyPreview ? ` — ${trackingInfo.bodyPreview}` : ''}
-                                  </span>
-                                ) : (
-                                  <>
-                                    <div><strong>Updated:</strong> {trackingInfo?.updatedAt ? new Date(trackingInfo.updatedAt).toLocaleString() : '…'}</div>
-                                  </>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        ) : (
-                          <button className="btn-secondary" onClick={() => startTrackingFor(trip.id)}>Track</button>
-                        )}
-                      </>
+                      trackingTripId === trip.id ? (
+                        <div style={{ fontSize: '0.85rem' }}>
+                          {trackingInfo?.error ? (
+                            <span style={{ color: '#b91c1c' }}>
+                              {trackingInfo.error}
+                              {trackingInfo.status ? ` (${trackingInfo.status} ${trackingInfo.statusText || ''})` : ''}
+                              {trackingInfo.url ? ` — ${trackingInfo.url}` : ''}
+                              {trackingInfo.bodyPreview ? ` — ${trackingInfo.bodyPreview}` : ''}
+                            </span>
+                          ) : (
+                            <>
+                              <div><strong>Tracking…</strong></div>
+                              <div><strong>Lat,Lon:</strong> {trackingInfo?.lat ?? '…'}, {trackingInfo?.lng ?? '…'}</div>
+                              <div><strong>Updated:</strong> {trackingInfo?.updatedAt ? new Date(trackingInfo.updatedAt).toLocaleString() : '…'}</div>
+                            </>
+                          )}
+                        </div>
+                      ) : (
+                        <button className="btn-secondary" onClick={() => startTrackingFor(trip.id)}>Track</button>
+                      )
                     ) : (
                       <span style={{ color: '#9CA3AF' }}>N/A</span>
                     )}
