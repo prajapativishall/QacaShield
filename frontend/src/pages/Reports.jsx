@@ -64,6 +64,9 @@ export function Reports() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedTrip, setSelectedTrip] = useState(null);
+  const [trackingId, setTrackingId] = useState('');
+  const [trackingInfo, setTrackingInfo] = useState(null);
+  const trackingRef = useRef(null);
   const [filters, setFilters] = useState({
     assignmentId: '',
     assignedTo: '',
@@ -277,6 +280,55 @@ export function Reports() {
     setFilters(prev => ({ ...prev, [name]: value }));
   };
 
+  const stopTracking = () => {
+    if (trackingRef.current) {
+      clearInterval(trackingRef.current);
+      trackingRef.current = null;
+    }
+  };
+
+  const startTracking = () => {
+    stopTracking();
+    const id = (trackingId || '').trim();
+    if (!id) {
+      setError('Enter an Assignment ID to track');
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+    const poll = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/assignments/current-location?tripId=${encodeURIComponent(id)}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.status === 401) {
+          logout();
+          return;
+        }
+        const data = await res.json();
+        if (!res.ok) {
+          setTrackingInfo({ error: data.error || 'Unable to fetch location' });
+          return;
+        }
+        setTrackingInfo({
+          lat: data.current_lat,
+          lng: data.current_lng,
+          phase: data.current_phase,
+          active: data.active,
+          updatedAt: data.updated_at
+        });
+        if (!data.active || ['COMPLETED','FINALIZED','CANCELLED'].includes(data.current_phase)) {
+          stopTracking();
+        }
+      } catch (e) {
+        setTrackingInfo({ error: e.message });
+      }
+    };
+    poll();
+    trackingRef.current = setInterval(poll, 5000);
+  };
+
+  useEffect(() => () => stopTracking(), []);
+
   if (loading) return <div className="reports-page">Loading...</div>;
   if (error) return <div className="reports-page">Error: {error}</div>;
 
@@ -285,6 +337,34 @@ export function Reports() {
       <h2>Assignments History</h2>
 
       <div className="filters-container">
+        <div className="filter-group" style={{ maxWidth: 280 }}>
+          <label>Track Location (Assignment ID)</label>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input
+              type="text"
+              value={trackingId}
+              onChange={(e) => setTrackingId(e.target.value)}
+              placeholder="Enter Assignment ID"
+            />
+            <button className="btn-secondary" onClick={startTracking}>Track</button>
+            <button className="btn-secondary" onClick={stopTracking}>Stop</button>
+          </div>
+          {trackingInfo && (
+            <div className="report-card" style={{ marginTop: 8, textAlign: 'left' }}>
+              {trackingInfo.error ? (
+                <div style={{ color: '#b91c1c' }}>Error: {trackingInfo.error}</div>
+              ) : (
+                <>
+                  <div><strong>Phase:</strong> {trackingInfo.phase || 'N/A'}</div>
+                  <div><strong>Active:</strong> {String(trackingInfo.active)}</div>
+                  <div><strong>Lat,Lon:</strong> {trackingInfo.lat ?? 'N/A'}, {trackingInfo.lng ?? 'N/A'}</div>
+                  <div><strong>Updated:</strong> {trackingInfo.updatedAt ? new Date(trackingInfo.updatedAt).toLocaleString() : 'N/A'}</div>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+
         <div className="filter-group">
           <label>Assignment ID</label>
           <AutocompleteInput

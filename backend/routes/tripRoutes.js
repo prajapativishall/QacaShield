@@ -17,6 +17,7 @@ import {
   getCompletedTripsCount,
   getMyCompletedTrips,
   getMyHistory,
+  getCurrentLocation,
   earlyExitTrip,
   cancelTrip,
   geocode,
@@ -31,6 +32,7 @@ router.post("/", requireRole(["MANAGER", "ADMIN"]), createTrip);
 router.get("/my-trips", requireRole([]), getMyTrips);
 router.get("/my-completed", requireRole([]), getMyCompletedTrips);
 router.get("/my-history", requireRole([]), getMyHistory);
+router.get("/current-location", requireRole(["MANAGER", "ADMIN"]), getCurrentLocation);
 router.get("/active", requireRole(["MANAGER", "ADMIN"]), listActiveTrips);
 router.get("/completed/count", requireRole(["MANAGER", "ADMIN"]), getCompletedTripsCount);
 router.get("/assigned-history", requireRole(["MANAGER", "ADMIN"]), getAssignedTripsHistory);

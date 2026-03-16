@@ -245,6 +245,25 @@ export async function acceptTrip(req, res) {
   }
 }
 
+export async function getCurrentLocation(req, res) {
+  try {
+    const { tripId } = req.query;
+    if (!tripId) return res.status(400).json({ error: "Missing tripId" });
+    const trip = await Trip.findByPk(tripId);
+    if (!trip) return res.status(404).json({ error: "Assignment not found" });
+    return res.json({
+      tripId: trip.id,
+      current_lat: trip.current_lat,
+      current_lng: trip.current_lng,
+      current_phase: trip.current_phase,
+      active: trip.active,
+      updated_at: trip.updated_at
+    });
+  } catch (error) {
+    console.error("Error fetching current location:", error);
+    res.status(500).json({ error: "Failed to fetch current location" });
+  }
+}
 export async function startTrip(req, res) {
   try {
     const { tripId, lat, lng } = req.body; // or req.params
