@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 class AppConstants {
   static const String appName = 'QacaShield';
+  static const bool enableFirebase = false;
 
   // Use 10.0.2.2 for Android Emulator, localhost for iOS Simulator/Web
   // Or your machine's LAN IP for physical device

@@ -19,6 +19,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int _selectedIndex = 0;
   late Future<List<dynamic>> _tripsFuture;
   List<dynamic> _completedTrips = [];
+  int? _filterYear;
+  int? _filterMonth; // 1-12
 
   @override
   void initState() {
@@ -32,15 +34,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
       _tripsFuture = TripService(authService.token!).fetchMyTrips();
     });
     try {
-      final trips = await _tripsFuture;
-      final completed = await TripService(
-        authService.token!,
-      ).fetchMyCompletedTrips();
-      setState(() {
-        _completedTrips = completed;
+      await _tripsFuture;
+      final completed = await TripService(authService.token!)
+          .fetchMyHistory(year: _filterYear, month: _filterMonth);
       });
     } catch (_) {}
   }
+
+  void _onItemTapped(int index) {
 
   void _onItemTapped(int index) {
     setState(() {
@@ -92,6 +93,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text('Exit logged successfully')),
                   );
+                  await _refreshTrips();
                 }
               } catch (e) {
                 if (mounted) {
@@ -462,13 +464,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       ),
                                       SizedBox(width: 4),
                                       Expanded(
-                                        child: Text(
-                                          'Destination: ${trip['destination_address'] ?? '${trip['dest_lat']}, ${trip['dest_lng']}'}',
-                                          style: TextStyle(
-                                            color: Colors.grey.shade700,
-                                            fontSize: 13,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
+                                        child: Builder(
+                                          builder: (context) {
+                                            final destAddress =
+                                                (trip['destination_address']
+                                                    ?.toString()
+                                                    .trim() ??
+                                                '');
+                                            final coordText =
+                                                (trip['dest_lat'] != null &&
+                                                    trip['dest_lng'] != null)
+                                                ? '${trip['dest_lat']}, ${trip['dest_lng']}'
+                                                : 'N/A';
+                                            final display =
+                                                destAddress.isNotEmpty
+                                                ? '$destAddress ($coordText)'
+                                                : coordText;
+                                            return Text(
+                                              'Destination: $display',
+                                              style: TextStyle(
+                                                color: Colors.grey.shade700,
+                                                fontSize: 13,
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                            );
+                                          },
                                         ),
                                       ),
                                     ],
@@ -491,9 +511,62 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildHistoryTab() {
+    final months = const [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    final currentYear = DateTime.now().year;
+    final years = List<int>.generate(6, (i) => currentYear - i);
     return Column(
       children: [
         _buildGreetingHeader(),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+          child: Row(
+            children: [
+              Expanded(
+                child: DropdownButtonFormField<int?>(
+                  value: _filterMonth,
+                  decoration: InputDecoration(
+                    labelText: 'Month',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    isDense: true,
+                  ),
+                  items: [
+                    DropdownMenuItem(value: null, child: Text('All')),
+                    ...List.generate(12, (i) => DropdownMenuItem(
+                      value: i + 1,
+                      child: Text(months[i]),
+                    )),
+                  ],
+                  onChanged: (val) {
+                    setState(() => _filterMonth = val);
+                    _refreshTrips();
+                  },
+                ),
+              ),
+              SizedBox(width: 12),
+              Expanded(
+                child: DropdownButtonFormField<int?>(
+                  value: _filterYear,
+                  decoration: InputDecoration(
+                    labelText: 'Year',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    isDense: true,
+                  ),
+                  items: [
+                    DropdownMenuItem(value: null, child: Text('All')),
+                    ...years.map((y) => DropdownMenuItem(value: y, child: Text(y.toString()))),
+                  ],
+                  onChanged: (val) {
+                    setState(() => _filterYear = val);
+                    _refreshTrips();
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
         Expanded(
           child: RefreshIndicator(
             onRefresh: _refreshTrips,
@@ -516,7 +589,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ),
                             SizedBox(height: 16),
                             Text(
-                              'No completed assignments yet',
+                              'No assignment history yet',
                               style: TextStyle(
                                 fontSize: 18,
                                 color: Colors.grey.shade600,
@@ -561,9 +634,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: ListTile(
-                          leading: Icon(
-                            Icons.check_circle,
-                            color: Colors.green,
+                          leading: Builder(
+                            builder: (_) {
+                              final String phase = (trip['current_phase'] ?? '')
+                                  .toString();
+                              final bool isEarlyExit =
+                                  trip['exit_reason'] != null &&
+                                  (trip['exit_reason'] as String)
+                                      .toString()
+                                      .trim()
+                                      .isNotEmpty;
+                              final Color statusColor = phase == 'CANCELLED'
+                                  ? Colors.red
+                                  : (isEarlyExit
+                                        ? Colors.orange
+                                        : Colors.green);
+                              final IconData statusIcon = phase == 'CANCELLED'
+                                  ? Icons.cancel
+                                  : (isEarlyExit
+                                        ? Icons.logout
+                                        : Icons.check_circle);
+                              return Icon(statusIcon, color: statusColor);
+                            },
                           ),
                           title: Text(
                             'Assignment ID: ${trip['task_title'] ?? trip['id']}',
@@ -577,10 +669,88 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               SizedBox(height: 4),
-                              Text(
-                                'Completed at: ${trip['actual_end_time'] != null ? DateFormat('dd MMM, hh:mm a').format(DateTime.parse(trip['actual_end_time'])) : 'N/A'}',
-                                style: TextStyle(fontSize: 12),
+                              Builder(
+                                builder: (_) {
+                                  final String phase =
+                                      (trip['current_phase'] ?? '').toString();
+                                  final bool isEarlyExit =
+                                      trip['exit_reason'] != null &&
+                                      (trip['exit_reason'] as String)
+                                          .toString()
+                                          .trim()
+                                          .isNotEmpty;
+                                  final String statusLabel =
+                                      phase == 'CANCELLED'
+                                      ? 'Cancelled'
+                                      : (isEarlyExit
+                                            ? 'Early Exit'
+                                            : 'Completed');
+                                  final Color statusColor = phase == 'CANCELLED'
+                                      ? Colors.red
+                                      : (isEarlyExit
+                                            ? Colors.orange
+                                            : Colors.green);
+                                  final DateTime? endTime =
+                                      trip['actual_end_time'] != null
+                                      ? DateTime.tryParse(
+                                          trip['actual_end_time'],
+                                        )
+                                      : null;
+                                  final String whenText = endTime != null
+                                      ? DateFormat(
+                                          'dd MMM, hh:mm a',
+                                        ).format(endTime)
+                                      : 'N/A';
+                                  return Row(
+                                    children: [
+                                      Container(
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 4,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: statusColor.withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(
+                                            6,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          statusLabel,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: statusColor,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                      SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          '$statusLabel at: $whenText',
+                                          style: TextStyle(fontSize: 12),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                },
                               ),
+                              if (trip['exit_reason'] != null &&
+                                  (trip['exit_reason'] as String)
+                                      .toString()
+                                      .trim()
+                                      .isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 2.0),
+                                  child: Text(
+                                    'Reason: ${trip['exit_reason']}',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey.shade700,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
                               SizedBox(height: 2),
                               Text(
                                 'Destination: $destinationText',

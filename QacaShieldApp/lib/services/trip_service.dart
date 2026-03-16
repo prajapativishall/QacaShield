@@ -54,6 +54,30 @@ class TripService {
     }
   }
 
+  Future<List<dynamic>> fetchMyHistory({int? year, int? month}) async {
+    final query = <String, String>{};
+    if (year != null) query['year'] = year.toString();
+    if (month != null) query['month'] = month.toString();
+    final url = Uri.parse(
+      '${AppConstants.baseUrl}/assignments/my-history',
+    ).replace(queryParameters: query.isEmpty ? null : query);
+    final response = await http.get(
+      url,
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else if (response.statusCode == 404) {
+      // Fallback for older backend: use completed endpoint
+      return await fetchMyCompletedTrips();
+    } else if (response.statusCode == 401 || response.statusCode == 403) {
+      throw AuthException('Session expired');
+    } else {
+      print('Failed to load history: ${response.statusCode} ${response.body}');
+      throw Exception('Failed to load assignment history');
+    }
+  }
+
   Future<void> sendGpsPing(int tripId, double lat, double lng) async {
     final url = Uri.parse('${AppConstants.baseUrl}/assignments/gps-ping');
     await http.post(

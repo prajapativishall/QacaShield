@@ -34,6 +34,7 @@ class _TripScreenState extends State<TripScreen> {
   bool _isNavigationMode = true; // Auto-follow by default like Uber/Ola
   static const String _cachePrefix = 'trip_cache_';
   static const double _homeGeofenceRadiusMeters = 100.0;
+  bool _arrivalInProgress = false;
 
   @override
   void initState() {
@@ -349,6 +350,9 @@ class _TripScreenState extends State<TripScreen> {
     if (currentLocation.latitude == null || currentLocation.longitude == null) {
       return;
     }
+    if (_arrivalInProgress) {
+      return;
+    }
     final current = LatLng(
       currentLocation.latitude!,
       currentLocation.longitude!,
@@ -358,9 +362,23 @@ class _TripScreenState extends State<TripScreen> {
     if (destLatVal == 0.0 && destLngVal == 0.0) {
       return;
     }
-    // Destination auto-marking is disabled for now; arrival will be
-    // controlled explicitly from backend or future flows.
-    return;
+    final dest = LatLng(destLatVal, destLngVal);
+    double radius = 100.0;
+    final rawRadius = _currentTrip['geofence_radius'];
+    if (rawRadius != null) {
+      final r = _toDouble(rawRadius);
+      if (r > 0) radius = r;
+    }
+    if (radius < 10.0) radius = 10.0;
+    final distance = _distanceInMeters(current, dest);
+    if (distance <= radius) {
+      _arrivalInProgress = true;
+      try {
+        await _reachDestination();
+      } catch (e) {
+        _arrivalInProgress = false;
+      }
+    }
   }
 
   Future<void> _startTracking() async {
@@ -430,6 +448,7 @@ class _TripScreenState extends State<TripScreen> {
         }
 
         _checkGeofenceAndComplete(currentLocation);
+        _checkDestinationGeofence(currentLocation);
       }
     });
   }

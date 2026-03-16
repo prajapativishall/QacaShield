@@ -9,11 +9,13 @@ import 'screens/dashboard_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  try {
-    await Firebase.initializeApp();
-    await NotificationService().initialize();
-  } catch (e) {
-    print("Firebase initialization failed: $e");
+  if (AppConstants.enableFirebase) {
+    try {
+      await Firebase.initializeApp();
+      await NotificationService().initialize();
+    } catch (e) {
+      print("Firebase initialization failed: $e");
+    }
   }
   runApp(MyApp());
 }

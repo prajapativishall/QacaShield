@@ -178,6 +178,40 @@ export async function getMyCompletedTrips(req, res) {
   }
 }
 
+export async function getMyHistory(req, res) {
+  try {
+    const userId = req.user.id;
+    const { year, month } = req.query;
+    const where = {
+      user_id: userId,
+      current_phase: { [Op.in]: ["COMPLETED", "FINALIZED", "CANCELLED"] }
+    };
+    if (year && String(year).trim() !== "") {
+      const y = Number(year);
+      if (!Number.isNaN(y) && y > 1970) {
+        const m = Number(month);
+        if (!Number.isNaN(m) && m >= 1 && m <= 12) {
+          const start = new Date(Date.UTC(y, m - 1, 1, 0, 0, 0));
+          const end = new Date(Date.UTC(y, m, 0, 23, 59, 59, 999));
+          where.actual_end_time = { [Op.between]: [start, end] };
+        } else {
+          const start = new Date(Date.UTC(y, 0, 1, 0, 0, 0));
+          const end = new Date(Date.UTC(y, 11, 31, 23, 59, 59, 999));
+          where.actual_end_time = { [Op.between]: [start, end] };
+        }
+      }
+    }
+    const trips = await Trip.findAll({
+      where,
+      order: [["actual_end_time", "DESC"], ["created_at", "DESC"]],
+      limit: 500
+    });
+    res.json(trips);
+  } catch (error) {
+    console.error("Error fetching assignment history:", error);
+    res.status(500).json({ error: "Failed to fetch assignment history" });
+  }
+}
 export async function acceptTrip(req, res) {
   try {
     const { tripId } = req.body;

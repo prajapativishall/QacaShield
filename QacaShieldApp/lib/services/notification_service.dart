@@ -1,5 +1,6 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -11,6 +12,9 @@ class NotificationService {
   NotificationService._internal();
 
   Future<void> initialize() async {
+    if (kIsWeb) {
+      return;
+    }
     // Request permissions
     NotificationSettings settings = await FirebaseMessaging.instance.requestPermission(
       alert: true,
