@@ -293,19 +293,35 @@ export function Reports() {
     setTrackingTripId(id);
     const poll = async () => {
       try {
-        const res = await fetch(`${API_URL}/api/assignments/current-location?tripId=${encodeURIComponent(id)}`, {
+        const url = `${API_URL}/api/assignments/current-location?tripId=${encodeURIComponent(id)}`;
+        const res = await fetch(url, {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (res.status === 401) {
           logout();
           return;
         }
-        const data = await res.json().catch(async () => {
+        let data;
+        try {
+          data = await res.json();
+        } catch {
           const txt = await res.text().catch(() => '');
-          return { error: txt || 'Non-JSON response' };
-        });
+          setTrackingInfo({
+            error: 'Non-JSON response',
+            status: res.status,
+            statusText: res.statusText,
+            url,
+            bodyPreview: (txt || '').slice(0, 120)
+          });
+          return;
+        }
         if (!res.ok) {
-          setTrackingInfo({ error: data.error || 'Unable to fetch location' });
+          setTrackingInfo({
+            error: data.error || 'Unable to fetch location',
+            status: res.status,
+            statusText: res.statusText,
+            url
+          });
           return;
         }
         setTrackingInfo({
@@ -412,7 +428,12 @@ export function Reports() {
                             <button className="btn-secondary" onClick={stopTracking}>Stop</button>
                             <div style={{ fontSize: '0.85rem', marginTop: 4 }}>
                               {trackingInfo?.error ? (
-                                <span style={{ color: '#b91c1c' }}>{trackingInfo.error}</span>
+                                <span style={{ color: '#b91c1c' }}>
+                                  {trackingInfo.error}
+                                  {trackingInfo.status ? ` (${trackingInfo.status} ${trackingInfo.statusText || ''})` : ''}
+                                  {trackingInfo.url ? ` — ${trackingInfo.url}` : ''}
+                                  {trackingInfo.bodyPreview ? ` — ${trackingInfo.bodyPreview}` : ''}
+                                </span>
                               ) : (
                                 <>
                                   <div><strong>Lat,Lon:</strong> {trackingInfo?.lat ?? '…'}, {trackingInfo?.lng ?? '…'}</div>
