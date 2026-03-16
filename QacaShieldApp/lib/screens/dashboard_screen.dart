@@ -35,13 +35,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
     try {
       await _tripsFuture;
-      final completed = await TripService(authService.token!)
-          .fetchMyHistory(year: _filterYear, month: _filterMonth);
+      final completed = await TripService(
+        authService.token!,
+      ).fetchMyHistory(year: _filterYear, month: _filterMonth);
+      setState(() {
+        _completedTrips = completed;
       });
     } catch (_) {}
   }
-
-  void _onItemTapped(int index) {
 
   void _onItemTapped(int index) {
     setState(() {
@@ -512,8 +513,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildHistoryTab() {
     final months = const [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     final currentYear = DateTime.now().year;
     final years = List<int>.generate(6, (i) => currentYear - i);
@@ -529,18 +540,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   value: _filterMonth,
                   decoration: InputDecoration(
                     labelText: 'Month',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                     isDense: true,
                   ),
                   items: [
                     DropdownMenuItem(value: null, child: Text('All')),
-                    ...List.generate(12, (i) => DropdownMenuItem(
-                      value: i + 1,
-                      child: Text(months[i]),
-                    )),
+                    ...List.generate(
+                      12,
+                      (i) => DropdownMenuItem(
+                        value: i + 1,
+                        child: Text(months[i]),
+                      ),
+                    ),
                   ],
                   onChanged: (val) {
-                    setState(() => _filterMonth = val);
+                    setState(() {
+                      _filterMonth = val;
+                      if (val != null && _filterYear == null) {
+                        _filterYear = DateTime.now().year;
+                      }
+                    });
                     _refreshTrips();
                   },
                 ),
@@ -551,12 +572,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   value: _filterYear,
                   decoration: InputDecoration(
                     labelText: 'Year',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                     isDense: true,
                   ),
                   items: [
                     DropdownMenuItem(value: null, child: Text('All')),
-                    ...years.map((y) => DropdownMenuItem(value: y, child: Text(y.toString()))),
+                    ...years.map(
+                      (y) =>
+                          DropdownMenuItem(value: y, child: Text(y.toString())),
+                    ),
                   ],
                   onChanged: (val) {
                     setState(() => _filterYear = val);
