@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useAuth } from "../context/AuthContext.jsx";
 import { API_URL } from "../apiConfig.js";
 import "../styles/Reports.css";
+import { MiniTrackerMap } from "../components/MiniTrackerMap.jsx";
 
 const AutocompleteInput = ({ suggestions, value, onChange, name, placeholder }) => {
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -424,22 +425,24 @@ export function Reports() {
                     {trip.displayStatus === 'ACTIVE' ? (
                       <>
                         {trackingTripId === trip.id ? (
-                          <div>
-                            <button className="btn-secondary" onClick={stopTracking}>Stop</button>
-                            <div style={{ fontSize: '0.85rem', marginTop: 4 }}>
-                              {trackingInfo?.error ? (
-                                <span style={{ color: '#b91c1c' }}>
-                                  {trackingInfo.error}
-                                  {trackingInfo.status ? ` (${trackingInfo.status} ${trackingInfo.statusText || ''})` : ''}
-                                  {trackingInfo.url ? ` — ${trackingInfo.url}` : ''}
-                                  {trackingInfo.bodyPreview ? ` — ${trackingInfo.bodyPreview}` : ''}
-                                </span>
-                              ) : (
-                                <>
-                                  <div><strong>Lat,Lon:</strong> {trackingInfo?.lat ?? '…'}, {trackingInfo?.lng ?? '…'}</div>
-                                  <div><strong>Updated:</strong> {trackingInfo?.updatedAt ? new Date(trackingInfo.updatedAt).toLocaleString() : '…'}</div>
-                                </>
-                              )}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <MiniTrackerMap lat={trackingInfo?.lat} lng={trackingInfo?.lng} />
+                            <div>
+                              <button className="btn-secondary" onClick={stopTracking} style={{ marginBottom: 6 }}>Stop</button>
+                              <div style={{ fontSize: '0.85rem' }}>
+                                {trackingInfo?.error ? (
+                                  <span style={{ color: '#b91c1c' }}>
+                                    {trackingInfo.error}
+                                    {trackingInfo.status ? ` (${trackingInfo.status} ${trackingInfo.statusText || ''})` : ''}
+                                    {trackingInfo.url ? ` — ${trackingInfo.url}` : ''}
+                                    {trackingInfo.bodyPreview ? ` — ${trackingInfo.bodyPreview}` : ''}
+                                  </span>
+                                ) : (
+                                  <>
+                                    <div><strong>Updated:</strong> {trackingInfo?.updatedAt ? new Date(trackingInfo.updatedAt).toLocaleString() : '…'}</div>
+                                  </>
+                                )}
+                              </div>
                             </div>
                           </div>
                         ) : (
