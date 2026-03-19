@@ -277,16 +277,48 @@ class _SafetyCheckScreenState extends State<SafetyCheckScreen> {
         );
       }
     } catch (e) {
-      String errorMessage = e.toString();
-      if (errorMessage.startsWith("Exception: ")) {
-        errorMessage = errorMessage.substring(11);
+      final authService2 = Provider.of<AuthService>(context, listen: false);
+      final ts = TripService(authService2.token!);
+      final now = DateTime.now().toIso8601String();
+      if (widget.isReturnTrip) {
+        if (locData != null) {
+          await ts.enqueueEvent({
+            'type': 'start_return',
+            'tripId': widget.trip['id'],
+            'lat': locData.latitude,
+            'lng': locData.longitude,
+            'ts': now
+          });
+        } else {
+          await ts.enqueueEvent({
+            'type': 'start_return',
+            'tripId': widget.trip['id'],
+            'ts': now
+          });
+        }
+        if (mounted) Navigator.pop(context, true);
+      } else {
+        await ts.enqueueEvent({
+          'type': 'start_trip',
+          'tripId': widget.trip['id'],
+          'lat': locData?.latitude,
+          'lng': locData?.longitude,
+          'ts': now
+        });
+        if (mounted) {
+          final updatedTrip = Map<String, dynamic>.from(widget.trip);
+          updatedTrip['active'] = true;
+          updatedTrip['current_phase'] = 'ACTIVE';
+          if (locData != null) {
+            updatedTrip['origin_lat'] = locData.latitude;
+            updatedTrip['origin_lng'] = locData.longitude;
+          }
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => TripScreen(trip: updatedTrip)),
+          );
+        }
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(errorMessage, style: TextStyle(color: Colors.white)),
-          backgroundColor: Colors.red,
-        ),
-      );
     } finally {
       if (mounted) {
         setState(() {

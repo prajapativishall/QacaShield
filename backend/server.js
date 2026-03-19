@@ -38,8 +38,18 @@ const io = initSocket(server);
 
 async function bootstrap() {
   await initDB();
-  startReturnHomeMonitor(sequelize, io);
-  startDestinationArrivalMonitor(sequelize, io);
+  const enableReturnMonitor = (process.env.RETURN_HOME_MONITOR_ENABLED ?? "true") !== "false";
+  const enableDestinationMonitor = (process.env.DESTINATION_ARRIVAL_MONITOR_ENABLED ?? "true") !== "false";
+  if (enableReturnMonitor) {
+    startReturnHomeMonitor(sequelize, io);
+  } else {
+    console.log("Return-home monitor disabled by env");
+  }
+  if (enableDestinationMonitor) {
+    startDestinationArrivalMonitor(sequelize, io);
+  } else {
+    console.log("Destination arrival monitor disabled by env");
+  }
   const port = process.env.PORT || 4000;
   server.listen(port, "0.0.0.0", () => {
     console.log(`QacaShield backend listening on :${port}`);

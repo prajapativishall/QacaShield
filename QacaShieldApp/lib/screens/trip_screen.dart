@@ -26,6 +26,7 @@ class _TripScreenState extends State<TripScreen> {
   final Location _location = Location();
 
   List<LatLng> _routePoints = [];
+  List<LatLng> _routeAheadPoints = [];
   List<Marker> _markers = [];
   LatLng? _currentLocation;
   StreamSubscription<LocationData>? _locationSubscription;
@@ -163,6 +164,7 @@ class _TripScreenState extends State<TripScreen> {
       if (routeCoords.isNotEmpty) {
         setState(() {
           _routePoints = routeCoords;
+          _routeAheadPoints = routeCoords;
 
           // Add markers for Start and End
           _markers.clear();
@@ -320,6 +322,20 @@ class _TripScreenState extends State<TripScreen> {
     return value * (math.pi / 180.0);
   }
 
+  int? _nearestRouteIndex(LatLng current) {
+    if (_routePoints.isEmpty) return null;
+    double best = double.infinity;
+    int bestIdx = 0;
+    for (int i = 0; i < _routePoints.length; i++) {
+      final d = _distanceInMeters(current, _routePoints[i]);
+      if (d < best) {
+        best = d;
+        bestIdx = i;
+      }
+    }
+    return bestIdx;
+  }
+
   Future<void> _checkGeofenceAndComplete(LocationData currentLocation) async {
     if (_currentTrip['current_phase'] != 'RETURNING_HOME') {
       return;
@@ -408,6 +424,7 @@ class _TripScreenState extends State<TripScreen> {
 
     final authService = Provider.of<AuthService>(context, listen: false);
     final tripService = TripService(authService.token!);
+    await tripService.flushPendingEvents();
 
     _locationSubscription = _location.onLocationChanged.listen((
       LocationData currentLocation,
@@ -431,7 +448,14 @@ class _TripScreenState extends State<TripScreen> {
               point: _currentLocation!,
               width: 60,
               height: 60,
-              child: Icon(Icons.navigation, color: Colors.blueAccent, size: 40),
+              child: Transform.rotate(
+                angle: ((currentLocation.heading ?? 0.0) * math.pi) / 180.0,
+                child: Icon(
+                  Icons.motorcycle,
+                  color: Colors.blueAccent,
+                  size: 40,
+                ),
+              ),
             ),
           );
         });
@@ -450,6 +474,19 @@ class _TripScreenState extends State<TripScreen> {
             18.0,
             currentLocation.heading ?? 0.0,
           );
+        }
+
+        if (_routePoints.isNotEmpty && _currentLocation != null) {
+          final idx = _nearestRouteIndex(_currentLocation!);
+          if (idx != null && idx >= 0 && idx < _routePoints.length) {
+            final nearest = _routePoints[idx];
+            final dist = _distanceInMeters(_currentLocation!, nearest);
+            if (dist <= 50.0) {
+              setState(() {
+                _routeAheadPoints = _routePoints.sublist(idx);
+              });
+            }
+          }
         }
 
         _checkGeofenceAndComplete(currentLocation);
@@ -528,10 +565,25 @@ class _TripScreenState extends State<TripScreen> {
       );
       Navigator.pop(context); // Go back to dashboard
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to complete assignment: $e")),
-      );
+      final authService2 = Provider.of<AuthService>(context, listen: false);
+      await TripService(authService2.token!).enqueueEvent({
+        'type': 'complete_trip',
+        'tripId': widget.trip['id'],
+        'ts': DateTime.now().toIso8601String()
+      });
+      if (mounted) {
+        _locationSubscription?.cancel();
+        await _location.enableBackgroundMode(enable: false);
+        await _clearRouteCache();
+        setState(() {
+          _currentTrip['current_phase'] = 'COMPLETED';
+          _currentTrip['active'] = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Completion recorded offline")),
+        );
+        Navigator.pop(context);
+      }
     }
   }
 
@@ -552,13 +604,27 @@ class _TripScreenState extends State<TripScreen> {
       });
       _refreshTripData();
       return true;
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
+      final lat = _currentLocation?.latitude;
+      final lng = _currentLocation?.longitude;
+      final authService2 = Provider.of<AuthService>(context, listen: false);
+      await TripService(authService2.token!).enqueueEvent({
+        'type': 'reach_destination',
+        'tripId': widget.trip['id'],
+        'lat': lat,
+        'lng': lng,
+        'ts': DateTime.now().toIso8601String()
+      });
+      if (mounted) {
+        setState(() {
+          _currentTrip['current_phase'] = 'REACHED_DESTINATION';
+        });
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Arrival recorded offline")),
+      );
       ).showSnackBar(SnackBar(content: Text("Failed to mark arrival: $e")));
       return false;
     }
-  }
 
   void _triggerReturnTrip() {
     Navigator.push(
@@ -620,12 +686,24 @@ class _TripScreenState extends State<TripScreen> {
                 }
               } catch (e) {
                 if (mounted) {
+                  final authService2 = Provider.of<AuthService>(context, listen: false);
+                  await TripService(authService2.token!).enqueueEvent({
+                    'type': 'early_exit',
+                    'tripId': _currentTrip['id'],
+                    'reason': reasonController.text.trim(),
+                    'lat': _currentLocation?.latitude,
+                    'lng': _currentLocation?.longitude,
+                    'ts': DateTime.now().toIso8601String()
+                  });
                   Navigator.pop(context);
+                  await _exitTracking();
+                  setState(() {
+                    _currentTrip['current_phase'] = 'COMPLETED';
+                    _currentTrip['active'] = false;
+                    _currentTrip['exit_reason'] = reasonController.text.trim();
+                  });
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Error: $e'),
-                      backgroundColor: Colors.red,
-                    ),
+                    SnackBar(content: Text('Exit recorded offline')),
                   );
                 }
               }
@@ -707,11 +785,11 @@ class _TripScreenState extends State<TripScreen> {
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 userAgentPackageName: 'com.example.qaca_shield_app',
               ),
-              if (_routePoints.isNotEmpty)
+              if (_routeAheadPoints.isNotEmpty)
                 PolylineLayer(
                   polylines: [
                     Polyline(
-                      points: _routePoints,
+                      points: _routeAheadPoints,
                       strokeWidth: 5.0,
                       color: AppConstants.primaryColor,
                     ),

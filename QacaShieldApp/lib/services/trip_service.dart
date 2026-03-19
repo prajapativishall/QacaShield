@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import '../config/constants.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthException implements Exception {
   final String message;
@@ -89,6 +90,7 @@ class TripService {
       },
       body: json.encode({'lat': lat, 'lng': lng}),
     );
+    await flushPendingEvents();
   }
 
   Future<void> sendAlert(
@@ -305,5 +307,43 @@ class TripService {
         'Failed to load offline route: ${response.statusCode} ${response.body}',
       );
     }
+  }
+
+  Future<void> enqueueEvent(Map<String, dynamic> event) async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString('pending_events') ?? '[]';
+    final list = (json.decode(raw) as List).cast<dynamic>().toList();
+    list.add(event);
+    await prefs.setString('pending_events', json.encode(list));
+  }
+
+  Future<void> flushPendingEvents() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString('pending_events') ?? '[]';
+    List<dynamic> list = (json.decode(raw) as List).cast<dynamic>().toList();
+    if (list.isEmpty) return;
+    final remaining = <dynamic>[];
+    for (final e in list) {
+      try {
+        final m = Map<String, dynamic>.from(e as Map);
+        final type = (m['type'] ?? '').toString();
+        if (type == 'reach_destination') {
+          await reachDestination(m['tripId'], lat: m['lat'], lng: m['lng']);
+        } else if (type == 'complete_trip') {
+          await completeTrip(m['tripId']);
+        } else if (type == 'early_exit') {
+          await earlyExitTrip(m['tripId'], m['reason'] ?? '', lat: m['lat'], lng: m['lng']);
+        } else if (type == 'start_return') {
+          await startReturnTrip(m['tripId'], m['lat'], m['lng']);
+        } else if (type == 'start_trip') {
+          await startTrip(m['tripId'], lat: m['lat'], lng: m['lng']);
+        } else {
+          remaining.add(e);
+        }
+      } catch (_) {
+        remaining.add(e);
+      }
+    }
+    await prefs.setString('pending_events', json.encode(remaining));
   }
 }
