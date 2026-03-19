@@ -462,7 +462,7 @@ export function Reports() {
                   <td>{trip.User ? trip.User.name : "Unknown"}</td>
                   <td>{trip.Assigner ? trip.Assigner.name : "System"}</td>
                   <td onClick={(e) => e.stopPropagation()}>
-                    {trip.displayStatus === 'ACTIVE' ? (
+                    {!['COMPLETED','FINALIZED','CANCELLED'].includes((trip.displayStatus || '').toUpperCase()) ? (
                       trackingTripId === trip.id ? (
                         <div style={{ fontSize: '0.85rem' }}>
                           {trackingInfo?.error ? (

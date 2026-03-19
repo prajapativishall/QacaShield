@@ -374,9 +374,14 @@ class _TripScreenState extends State<TripScreen> {
     if (distance <= radius) {
       _arrivalInProgress = true;
       try {
-        await _reachDestination();
-      } catch (e) {
-        _arrivalInProgress = false;
+        final ok = await _reachDestination();
+        if (!ok) {
+          _arrivalInProgress = false;
+        }
+      } finally {
+        if (mounted && _currentTrip['current_phase'] != 'REACHED_DESTINATION') {
+          _arrivalInProgress = false;
+        }
       }
     }
   }
@@ -530,27 +535,28 @@ class _TripScreenState extends State<TripScreen> {
     }
   }
 
-  Future<void> _reachDestination() async {
+  Future<bool> _reachDestination() async {
     final authService = Provider.of<AuthService>(context, listen: false);
     try {
-      final loc = await _location.getLocation();
-      await TripService(authService.token!).reachDestination(
-        widget.trip['id'],
-        lat: loc.latitude,
-        lng: loc.longitude,
-      );
+      final lat = _currentLocation?.latitude;
+      final lng = _currentLocation?.longitude;
+      await TripService(
+        authService.token!,
+      ).reachDestination(widget.trip['id'], lat: lat, lng: lng);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Marked as Arrived at Destination")),
       );
-      if (!mounted) return;
+      if (!mounted) return true;
       setState(() {
         _currentTrip['current_phase'] = 'REACHED_DESTINATION';
       });
       _refreshTripData();
+      return true;
     } catch (e) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text("Failed to mark arrival: $e")));
+      return false;
     }
   }
 
