@@ -783,6 +783,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 style: TextStyle(fontSize: 12),
                                 overflow: TextOverflow.ellipsis,
                               ),
+                              if (trip['arrival_lat'] != null &&
+                                  trip['arrival_lng'] != null)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 2.0),
+                                  child: Text(
+                                    'Arrival: ${trip['arrival_lat']}, ${trip['arrival_lng']}',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.blue.shade700,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              if (trip['completed_lat'] != null &&
+                                  trip['completed_lng'] != null)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 1.0),
+                                  child: Text(
+                                    'Completed: ${trip['completed_lat']}, ${trip['completed_lng']}',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.green.shade700,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
                             ],
                           ),
                         ),

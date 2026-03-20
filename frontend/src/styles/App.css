@@ -86,6 +86,7 @@ button {
   display: flex;
   height: 100vh;
   overflow: hidden;
+  position: relative;
 }
 
 .main-content {
@@ -96,12 +97,35 @@ button {
   overflow: hidden;
   position: relative;
   background-color: var(--bg-body);
+  transition: transform 0.3s ease;
 }
 
 main {
   flex: 1;
   overflow-y: auto;
   padding: var(--spacing-lg);
+}
+
+/* Sidebar Overlay */
+.sidebar-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 15;
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .sidebar-overlay {
+    display: block;
+  }
+  
+  main {
+    padding: var(--spacing-md);
+  }
 }
 
 /* Scrollbar Styling */

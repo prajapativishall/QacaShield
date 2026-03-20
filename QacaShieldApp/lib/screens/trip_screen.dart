@@ -7,6 +7,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:location/location.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_map_tile_caching/flutter_map_tile_caching.dart';
 import '../services/auth_service.dart';
 import '../services/trip_service.dart';
 import '../config/constants.dart';
@@ -21,14 +22,20 @@ class TripScreen extends StatefulWidget {
   _TripScreenState createState() => _TripScreenState();
 }
 
-class _TripScreenState extends State<TripScreen> {
+class _TripScreenState extends State<TripScreen>
+    with SingleTickerProviderStateMixin {
   final MapController _mapController = MapController();
   final Location _location = Location();
+  AnimationController? _animationController;
 
   List<LatLng> _routePoints = [];
   List<LatLng> _routeAheadPoints = [];
+  int _offRouteHits = 0;
+  static const double _offRouteThresholdMeters = 120.0;
+  static const int _offRouteConfirmHits = 3;
   List<Marker> _markers = [];
   LatLng? _currentLocation;
+  double _currentHeading = 0.0;
   StreamSubscription<LocationData>? _locationSubscription;
 
   Map<String, dynamic> _currentTrip = {};
@@ -36,10 +43,69 @@ class _TripScreenState extends State<TripScreen> {
   static const String _cachePrefix = 'trip_cache_';
   static const double _homeGeofenceRadiusMeters = 100.0;
   bool _arrivalInProgress = false;
+  TileProvider? _tileProvider;
+  DateTime? _tripStartTime;
+
+  void _animatedMapMove(
+    LatLng destLocation,
+    double? destZoom,
+    double destRotation,
+  ) {
+    _animationController?.stop();
+    _animationController?.dispose();
+
+    final targetZoom = destZoom ?? _mapController.camera.zoom;
+
+    final latTween = Tween<double>(
+      begin: _mapController.camera.center.latitude,
+      end: destLocation.latitude,
+    );
+    final lngTween = Tween<double>(
+      begin: _mapController.camera.center.longitude,
+      end: destLocation.longitude,
+    );
+    final zoomTween = Tween<double>(
+      begin: _mapController.camera.zoom,
+      end: targetZoom,
+    );
+    final rotationTween = Tween<double>(
+      begin: _mapController.camera.rotation,
+      end: destRotation,
+    );
+
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 500),
+      vsync: this,
+    );
+
+    final animation = CurvedAnimation(
+      parent: _animationController!,
+      curve: Curves.fastOutSlowIn,
+    );
+
+    _animationController!.addListener(() {
+      if (!mounted) return;
+      _mapController.moveAndRotate(
+        LatLng(latTween.evaluate(animation), lngTween.evaluate(animation)),
+        zoomTween.evaluate(animation),
+        rotationTween.evaluate(animation),
+      );
+    });
+
+    _animationController!.forward();
+  }
+
+  @override
+  void dispose() {
+    _animationController?.dispose();
+    _locationSubscription?.cancel();
+    super.dispose();
+  }
 
   @override
   void initState() {
     super.initState();
+    _tripStartTime = DateTime.now();
     _currentTrip = widget.trip;
     _loadCachedRoute();
     _refreshTripData();
@@ -81,21 +147,17 @@ class _TripScreenState extends State<TripScreen> {
         });
         _setupMap();
       } else {
-        // Trip not found in active list -> likely completed
+        // Trip not found in active list -> likely completed or cancelled
+        // But only if we are online and sure it's gone
         setState(() {
           _currentTrip['current_phase'] = 'COMPLETED';
           _currentTrip['active'] = false;
         });
       }
     } catch (e) {
-      print("Error refreshing trip data: $e");
+      print("Error refreshing trip data (offline?): $e");
+      // If offline, we keep using the data we have from widget.trip or _loadCachedRoute
     }
-  }
-
-  @override
-  void dispose() {
-    _locationSubscription?.cancel();
-    super.dispose();
   }
 
   double _toDouble(dynamic value) {
@@ -156,10 +218,19 @@ class _TripScreenState extends State<TripScreen> {
 
   Future<void> _setupMap() async {
     // Decode route if available
-    if (_currentTrip['route_polyline'] != null) {
+    if (_currentTrip['route_polyline'] != null ||
+        _currentTrip['route_path'] != null) {
       List<LatLng> routeCoords = _decodePolyline(
-        _currentTrip['route_polyline'],
+        _currentTrip['route_polyline'] ?? '',
       );
+      if (routeCoords.isEmpty && _currentTrip['route_path'] != null) {
+        try {
+          final List<dynamic> raw = _currentTrip['route_path'];
+          routeCoords = raw
+              .map((p) => LatLng(_toDouble(p[0]), _toDouble(p[1])))
+              .toList();
+        } catch (_) {}
+      }
 
       if (routeCoords.isNotEmpty) {
         setState(() {
@@ -167,36 +238,54 @@ class _TripScreenState extends State<TripScreen> {
           _routeAheadPoints = routeCoords;
 
           // Add markers for Start and End
+          // Preserve 'me' marker if exists
+          Marker? meMarker;
+          try {
+            meMarker = _markers.firstWhere((m) => m.key == Key('me'));
+          } catch (_) {}
+
           _markers.clear();
-          if (_currentTrip['origin_lat'] != null) {
-            _markers.add(
-              Marker(
-                point: routeCoords.first,
-                width: 80,
-                height: 80,
-                child: Column(
-                  children: [
-                    Icon(Icons.location_on, color: Colors.green, size: 40),
-                    Container(
-                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      color: Colors.white,
-                      child: Text(
-                        'Start',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }
+          if (meMarker != null) _markers.add(meMarker);
+
+          final oLat = _toDouble(_currentTrip['origin_lat']);
+          final oLng = _toDouble(_currentTrip['origin_lng']);
+          final startPoint = (oLat != 0.0 && oLng != 0.0)
+              ? LatLng(oLat, oLng)
+              : routeCoords.first;
 
           _markers.add(
             Marker(
-              point: routeCoords.last,
+              point: startPoint,
+              width: 80,
+              height: 80,
+              child: Column(
+                children: [
+                  Icon(Icons.location_on, color: Colors.green, size: 40),
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    color: Colors.white,
+                    child: Text(
+                      'Start',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+
+          final dLat = _toDouble(_currentTrip['dest_lat']);
+          final dLng = _toDouble(_currentTrip['dest_lng']);
+          final endPoint = (dLat != 0.0 && dLng != 0.0)
+              ? LatLng(dLat, dLng)
+              : routeCoords.last;
+
+          _markers.add(
+            Marker(
+              point: endPoint,
               width: 80,
               height: 80,
               child: Column(
@@ -222,12 +311,19 @@ class _TripScreenState extends State<TripScreen> {
       await _cacheRouteData();
     } else {
       // If no route yet (Planned phase), just show destination marker if available
-      double? dLat = _toDouble(_currentTrip['dest_lat']);
-      double? dLng = _toDouble(_currentTrip['dest_lng']);
+      double dLat = _toDouble(_currentTrip['dest_lat']);
+      double dLng = _toDouble(_currentTrip['dest_lng']);
 
       if (dLat != 0.0 && dLng != 0.0) {
         setState(() {
+          Marker? meMarker;
+          try {
+            meMarker = _markers.firstWhere((m) => m.key == Key('me'));
+          } catch (_) {}
+
           _markers.clear();
+          if (meMarker != null) _markers.add(meMarker);
+
           _markers.add(
             Marker(
               point: LatLng(dLat, dLng),
@@ -253,6 +349,19 @@ class _TripScreenState extends State<TripScreen> {
           );
         });
       }
+    }
+    try {
+      final storeName = 'trip_${_currentTrip['id']}';
+      final store = FMTCStore(storeName);
+      await store.manage.create();
+      setState(() {
+        _tileProvider = FMTCTileProvider(
+          stores: {storeName: BrowseStoreStrategy.readUpdateCreate},
+          loadingStrategy: BrowseLoadingStrategy.cacheFirst,
+        );
+      });
+    } catch (e) {
+      print("Offline map setup failed: $e");
     }
   }
 
@@ -336,11 +445,62 @@ class _TripScreenState extends State<TripScreen> {
     return bestIdx;
   }
 
+  Future<void> _rerouteFromCurrent() async {
+    final dLat = _toDouble(_currentTrip['dest_lat']);
+    final dLng = _toDouble(_currentTrip['dest_lng']);
+    if (_currentLocation == null || dLat == 0.0 || dLng == 0.0) return;
+
+    try {
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final ts = TripService(authService.token!);
+      final newPath = await ts.fetchBestRoute(
+        _currentLocation!.latitude,
+        _currentLocation!.longitude,
+        dLat,
+        dLng,
+      );
+      final coords = newPath.map((p) => LatLng(p[0], p[1])).toList();
+      if (coords.isNotEmpty) {
+        setState(() {
+          _routePoints = coords;
+          _routeAheadPoints = coords;
+          _currentTrip['route_path'] = newPath;
+        });
+        await _setupMap();
+        await _cacheRouteData();
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Route updated")));
+      }
+    } catch (e) {
+      // Offline Reroute Fallback: Straight line to destination
+      final fallbackPoints = [_currentLocation!, LatLng(dLat, dLng)];
+      setState(() {
+        _routePoints = fallbackPoints;
+        _routeAheadPoints = fallbackPoints;
+        _currentTrip['route_path'] = [
+          [_currentLocation!.latitude, _currentLocation!.longitude],
+          [dLat, dLng],
+        ];
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Offline: Using direct path to destination"),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
   Future<void> _checkGeofenceAndComplete(LocationData currentLocation) async {
     if (_currentTrip['current_phase'] != 'RETURNING_HOME') {
       return;
     }
     if (currentLocation.latitude == null || currentLocation.longitude == null) {
+      return;
+    }
+    // Prevent triggering if location is (0,0) (initialization error)
+    if (currentLocation.latitude == 0.0 && currentLocation.longitude == 0.0) {
       return;
     }
     final current = LatLng(
@@ -349,12 +509,28 @@ class _TripScreenState extends State<TripScreen> {
     );
     final homeLatVal = _toDouble(_currentTrip['home_lat']);
     final homeLngVal = _toDouble(_currentTrip['home_lng']);
+
+    // Debug Logging
+    print(
+      "RETURN GEOFENCE: Current(${current.latitude}, ${current.longitude}) Home($homeLatVal, $homeLngVal)",
+    );
+
     if (homeLatVal == 0.0 && homeLngVal == 0.0) {
+      print("RETURN GEOFENCE: Missing home coordinates, skipping.");
       return;
     }
+    // Safeguard: Wait at least 30 seconds after starting the return trip before allowing completion
+    if (_tripStartTime != null &&
+        DateTime.now().difference(_tripStartTime!).inSeconds < 30) {
+      return;
+    }
+
     final home = LatLng(homeLatVal, homeLngVal);
     final distance = _distanceInMeters(current, home);
+    print("RETURN GEOFENCE: Distance = $distance meters");
+
     if (distance <= _homeGeofenceRadiusMeters) {
+      print("RETURN GEOFENCE: Home REACHED! Finalizing assignment...");
       await _completeTrip();
     }
   }
@@ -366,6 +542,15 @@ class _TripScreenState extends State<TripScreen> {
     if (currentLocation.latitude == null || currentLocation.longitude == null) {
       return;
     }
+    // Prevent triggering if location is (0,0) (initialization error)
+    if (currentLocation.latitude == 0.0 && currentLocation.longitude == 0.0) {
+      return;
+    }
+    // Safeguard: Wait at least 30 seconds after starting the trip before allowing destination arrival
+    if (_tripStartTime != null &&
+        DateTime.now().difference(_tripStartTime!).inSeconds < 30) {
+      return;
+    }
     if (_arrivalInProgress) {
       return;
     }
@@ -375,10 +560,28 @@ class _TripScreenState extends State<TripScreen> {
     );
     final destLatVal = _toDouble(_currentTrip['dest_lat']);
     final destLngVal = _toDouble(_currentTrip['dest_lng']);
+
+    // Debug Logging
+    print(
+      "GEOFENCE CHECK: Current(${current.latitude}, ${current.longitude}) Dest($destLatVal, $destLngVal)",
+    );
+
     if (destLatVal == 0.0 && destLngVal == 0.0) {
+      print("GEOFENCE: Missing destination coordinates, skipping.");
       return;
     }
     final dest = LatLng(destLatVal, destLngVal);
+    // Also skip if the destination is exactly the same as origin (start of trip)
+    final originLat = _toDouble(_currentTrip['origin_lat']);
+    final originLng = _toDouble(_currentTrip['origin_lng']);
+    if (originLat != 0.0 &&
+        originLng != 0.0 &&
+        _distanceInMeters(current, LatLng(originLat, originLng)) < 100.0) {
+      // Still within 100m of starting point, don't trigger destination reached
+      print("GEOFENCE: Too close to origin, skipping.");
+      return;
+    }
+
     double radius = 100.0;
     final rawRadius = _currentTrip['geofence_radius'];
     if (rawRadius != null) {
@@ -387,7 +590,10 @@ class _TripScreenState extends State<TripScreen> {
     }
     if (radius < 10.0) radius = 10.0;
     final distance = _distanceInMeters(current, dest);
+    print("GEOFENCE: Calculated distance = $distance meters (Radius: $radius)");
+
     if (distance <= radius) {
+      print("GEOFENCE: Destination REACHED! Triggering arrival...");
       _arrivalInProgress = true;
       try {
         final ok = await _reachDestination();
@@ -427,29 +633,54 @@ class _TripScreenState extends State<TripScreen> {
     await tripService.flushPendingEvents();
 
     _locationSubscription = _location.onLocationChanged.listen((
-      LocationData currentLocation,
+      LocationData currentLocationData,
     ) {
       if (!mounted) return;
-      if (currentLocation.latitude != null &&
-          currentLocation.longitude != null) {
-        setState(() {
-          _currentLocation = LatLng(
-            currentLocation.latitude!,
-            currentLocation.longitude!,
-          );
+      if (currentLocationData.latitude != null &&
+          currentLocationData.longitude != null) {
+        final rawLocation = LatLng(
+          currentLocationData.latitude!,
+          currentLocationData.longitude!,
+        );
 
-          // Update My Location marker
-          _markers.removeWhere(
-            (m) => m.key == Key('me'),
-          ); // We'll use Key to identify
+        LatLng snappedLocation = rawLocation;
+        int? nearestIdx;
+
+        // 1. Snapping: If close to the route, snap the icon to the line
+        if (_routePoints.isNotEmpty) {
+          nearestIdx = _nearestRouteIndex(rawLocation);
+          if (nearestIdx != null && nearestIdx >= 0) {
+            final nearestPoint = _routePoints[nearestIdx];
+            final dist = _distanceInMeters(rawLocation, nearestPoint);
+            if (dist <= 15.0) {
+              // Within 15m: Snap for visual smoothness
+              snappedLocation = nearestPoint;
+            }
+          }
+        }
+
+        // 2. Heading Filtering: Ignore noisy jumps when stationary
+        double newHeading = _currentHeading;
+        final speed = (currentLocationData.speed ?? 0.0) * 3.6; // Speed in km/h
+        if (speed > 5.0 && currentLocationData.heading != null) {
+          // Only update heading if moving fast enough to be accurate
+          newHeading = currentLocationData.heading!;
+        }
+
+        setState(() {
+          _currentLocation = snappedLocation;
+          _currentHeading = newHeading;
+
+          // Update My Location marker (Motorcycle Icon)
+          _markers.removeWhere((m) => m.key == Key('me'));
           _markers.add(
             Marker(
               key: Key('me'),
-              point: _currentLocation!,
+              point: snappedLocation,
               width: 60,
               height: 60,
               child: Transform.rotate(
-                angle: ((currentLocation.heading ?? 0.0) * math.pi) / 180.0,
+                angle: (_currentHeading * math.pi) / 180.0,
                 child: Icon(
                   Icons.motorcycle,
                   color: Colors.blueAccent,
@@ -458,39 +689,47 @@ class _TripScreenState extends State<TripScreen> {
               ),
             ),
           );
+
+          // 3. Route Trail: Keep a bit of history (last 2 points) for visual context
+          if (nearestIdx != null && nearestIdx >= 0) {
+            final startIdx = math.max(0, nearestIdx - 2);
+            _routeAheadPoints = _routePoints.sublist(startIdx);
+
+            final distToRoute = _distanceInMeters(
+              rawLocation,
+              _routePoints[nearestIdx],
+            );
+            if (distToRoute <= 50.0) {
+              _offRouteHits = 0;
+            } else {
+              _offRouteHits += 1;
+              if (_offRouteHits >= _offRouteConfirmHits &&
+                  distToRoute > _offRouteThresholdMeters) {
+                _offRouteHits = 0;
+                _rerouteFromCurrent();
+              }
+            }
+          }
         });
 
+        // 4. Background Server Ping
         tripService
             .sendGpsPing(
               widget.trip['id'],
-              currentLocation.latitude!,
-              currentLocation.longitude!,
+              currentLocationData.latitude!,
+              currentLocationData.longitude!,
             )
             .catchError((e) => print("Ping failed: $e"));
 
-        if (_isNavigationMode) {
-          _mapController.moveAndRotate(
-            _currentLocation!,
-            18.0,
-            currentLocation.heading ?? 0.0,
-          );
+        // 5. Camera Animation (Navigation Mode)
+        if (_isNavigationMode && _currentLocation != null) {
+          final currentZoom = _mapController.camera.zoom;
+          final targetZoom = currentZoom < 14.0 ? 18.0 : currentZoom;
+          _animatedMapMove(_currentLocation!, targetZoom, _currentHeading);
         }
 
-        if (_routePoints.isNotEmpty && _currentLocation != null) {
-          final idx = _nearestRouteIndex(_currentLocation!);
-          if (idx != null && idx >= 0 && idx < _routePoints.length) {
-            final nearest = _routePoints[idx];
-            final dist = _distanceInMeters(_currentLocation!, nearest);
-            if (dist <= 50.0) {
-              setState(() {
-                _routeAheadPoints = _routePoints.sublist(idx);
-              });
-            }
-          }
-        }
-
-        _checkGeofenceAndComplete(currentLocation);
-        _checkDestinationGeofence(currentLocation);
+        _checkGeofenceAndComplete(currentLocationData);
+        _checkDestinationGeofence(currentLocationData);
       }
     });
   }
@@ -500,7 +739,9 @@ class _TripScreenState extends State<TripScreen> {
       _isNavigationMode = !_isNavigationMode;
     });
     if (_isNavigationMode && _currentLocation != null) {
-      _mapController.moveAndRotate(_currentLocation!, 18.0, 0.0);
+      final currentZoom = _mapController.camera.zoom;
+      final targetZoom = currentZoom < 14.0 ? 18.0 : currentZoom;
+      _animatedMapMove(_currentLocation!, targetZoom, 0.0);
     }
   }
 
@@ -538,16 +779,32 @@ class _TripScreenState extends State<TripScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Failed to send SOS: $e")));
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: Text("SOS Recorded", style: TextStyle(color: Colors.orange)),
+          content: Text(
+            "You are offline. The SOS alert has been recorded and will be sent automatically once you are back online.",
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text("OK"),
+            ),
+          ],
+        ),
+      );
     }
   }
 
   Future<void> _completeTrip() async {
     final authService = Provider.of<AuthService>(context, listen: false);
+    final lat = _currentLocation?.latitude;
+    final lng = _currentLocation?.longitude;
     try {
-      await TripService(authService.token!).completeTrip(widget.trip['id']);
+      await TripService(
+        authService.token!,
+      ).completeTrip(widget.trip['id'], lat: lat, lng: lng);
 
       if (!mounted) return;
 
@@ -565,12 +822,6 @@ class _TripScreenState extends State<TripScreen> {
       );
       Navigator.pop(context); // Go back to dashboard
     } catch (e) {
-      final authService2 = Provider.of<AuthService>(context, listen: false);
-      await TripService(authService2.token!).enqueueEvent({
-        'type': 'complete_trip',
-        'tripId': widget.trip['id'],
-        'ts': DateTime.now().toIso8601String()
-      });
       if (mounted) {
         _locationSubscription?.cancel();
         await _location.enableBackgroundMode(enable: false);
@@ -579,54 +830,51 @@ class _TripScreenState extends State<TripScreen> {
           _currentTrip['current_phase'] = 'COMPLETED';
           _currentTrip['active'] = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Completion recorded offline")),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Completion recorded offline")));
         Navigator.pop(context);
       }
     }
+    try {
+      final storeName = 'trip_${_currentTrip['id']}';
+      final store = FMTCStore(storeName);
+      await store.manage.delete();
+    } catch (_) {}
   }
 
   Future<bool> _reachDestination() async {
     final authService = Provider.of<AuthService>(context, listen: false);
+    final lat = _currentLocation?.latitude;
+    final lng = _currentLocation?.longitude;
     try {
-      final lat = _currentLocation?.latitude;
-      final lng = _currentLocation?.longitude;
       await TripService(
         authService.token!,
-      ).reachDestination(widget.trip['id'], lat: lat, lng: lng);
+      ).reachDestination(_currentTrip['id'], lat: lat, lng: lng);
+      if (!mounted) return true;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Marked as Arrived at Destination")),
       );
-      if (!mounted) return true;
       setState(() {
         _currentTrip['current_phase'] = 'REACHED_DESTINATION';
       });
       _refreshTripData();
       return true;
-      final lat = _currentLocation?.latitude;
-      final lng = _currentLocation?.longitude;
-      final authService2 = Provider.of<AuthService>(context, listen: false);
-      await TripService(authService2.token!).enqueueEvent({
-        'type': 'reach_destination',
-        'tripId': widget.trip['id'],
-        'lat': lat,
-        'lng': lng,
-        'ts': DateTime.now().toIso8601String()
-      });
+    } catch (e) {
       if (mounted) {
         setState(() {
           _currentTrip['current_phase'] = 'REACHED_DESTINATION';
         });
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Arrival recorded offline")));
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Arrival recorded offline")),
-      );
-      ).showSnackBar(SnackBar(content: Text("Failed to mark arrival: $e")));
       return false;
     }
+  }
 
   void _triggerReturnTrip() {
+    _tripStartTime = DateTime.now();
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -686,14 +934,17 @@ class _TripScreenState extends State<TripScreen> {
                 }
               } catch (e) {
                 if (mounted) {
-                  final authService2 = Provider.of<AuthService>(context, listen: false);
+                  final authService2 = Provider.of<AuthService>(
+                    context,
+                    listen: false,
+                  );
                   await TripService(authService2.token!).enqueueEvent({
                     'type': 'early_exit',
                     'tripId': _currentTrip['id'],
                     'reason': reasonController.text.trim(),
                     'lat': _currentLocation?.latitude,
                     'lng': _currentLocation?.longitude,
-                    'ts': DateTime.now().toIso8601String()
+                    'ts': DateTime.now().toIso8601String(),
                   });
                   Navigator.pop(context);
                   await _exitTracking();
@@ -778,12 +1029,23 @@ class _TripScreenState extends State<TripScreen> {
                       77.2090,
                 ),
               ),
-              initialZoom: 14.0,
+              initialZoom: 16.0,
+              onMapEvent: (event) {
+                if (event is MapEventMoveStart &&
+                    event.source != MapEventSource.mapController) {
+                  if (_isNavigationMode) {
+                    setState(() {
+                      _isNavigationMode = false;
+                    });
+                  }
+                }
+              },
             ),
             children: [
               TileLayer(
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 userAgentPackageName: 'com.example.qaca_shield_app',
+                tileProvider: _tileProvider ?? NetworkTileProvider(),
               ),
               if (_routeAheadPoints.isNotEmpty)
                 PolylineLayer(
@@ -795,6 +1057,40 @@ class _TripScreenState extends State<TripScreen> {
                     ),
                   ],
                 ),
+              CircleLayer(
+                circles: [
+                  // Destination Geofence
+                  if (_currentTrip['current_phase'] == 'ACTIVE' &&
+                      _currentTrip['dest_lat'] != null &&
+                      _currentTrip['dest_lng'] != null)
+                    CircleMarker(
+                      point: LatLng(
+                        _toDouble(_currentTrip['dest_lat']),
+                        _toDouble(_currentTrip['dest_lng']),
+                      ),
+                      radius: _toDouble(_currentTrip['geofence_radius'] ?? 100),
+                      useRadiusInMeter: true,
+                      color: Colors.blue.withOpacity(0.15),
+                      borderColor: Colors.blue.withOpacity(0.5),
+                      borderStrokeWidth: 2,
+                    ),
+                  // Home Geofence (during return trip)
+                  if (_currentTrip['current_phase'] == 'RETURNING_HOME' &&
+                      _currentTrip['home_lat'] != null &&
+                      _currentTrip['home_lng'] != null)
+                    CircleMarker(
+                      point: LatLng(
+                        _toDouble(_currentTrip['home_lat']),
+                        _toDouble(_currentTrip['home_lng']),
+                      ),
+                      radius: _homeGeofenceRadiusMeters,
+                      useRadiusInMeter: true,
+                      color: Colors.green.withOpacity(0.15),
+                      borderColor: Colors.green.withOpacity(0.5),
+                      borderStrokeWidth: 2,
+                    ),
+                ],
+              ),
               MarkerLayer(markers: _markers),
               RichAttributionWidget(
                 attributions: [
@@ -825,11 +1121,13 @@ class _TripScreenState extends State<TripScreen> {
                   heroTag: "nav_btn",
                   onPressed: _toggleNavigationMode,
                   backgroundColor: _isNavigationMode
-                      ? Colors.blue
+                      ? AppConstants.primaryColor
                       : Colors.white,
                   child: Icon(
                     _isNavigationMode ? Icons.navigation : Icons.my_location,
-                    color: _isNavigationMode ? Colors.white : Colors.blue,
+                    color: _isNavigationMode
+                        ? Colors.white
+                        : AppConstants.primaryColor,
                     size: 30,
                   ),
                   elevation: 4,

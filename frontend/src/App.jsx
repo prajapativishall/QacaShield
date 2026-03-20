@@ -1,5 +1,5 @@
-import React from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext.jsx";
 import { Dashboard } from "./pages/Dashboard.jsx";
 import { Login } from "./pages/Login.jsx";
@@ -25,12 +25,21 @@ function ProtectedRoute({ children, allowedRoles }) {
 
 function AppContent() {
   const { user } = useAuth();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const location = useLocation();
+
+  // Close sidebar when route changes on mobile
+  useEffect(() => {
+    setIsSidebarOpen(false);
+  }, [location.pathname]);
+
+  const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
   
   return (
-    <div className="app-shell">
-      {user && <Sidebar />}
+    <div className={`app-shell ${isSidebarOpen ? 'sidebar-open' : ''}`}>
+      {user && <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />}
       <div className="main-content">
-        <Header />
+        <Header onMenuClick={toggleSidebar} />
         <main>
           <Routes>
             <Route path="/login" element={<Login />} />
@@ -64,6 +73,10 @@ function AppContent() {
           </Routes>
         </main>
       </div>
+      {/* Overlay for mobile */}
+      {user && isSidebarOpen && (
+        <div className="sidebar-overlay" onClick={() => setIsSidebarOpen(false)}></div>
+      )}
     </div>
   );
 }

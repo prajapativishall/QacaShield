@@ -11,6 +11,9 @@ import '../config/constants.dart';
 import 'trip_screen.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:location/location.dart' as loc;
+import 'package:latlong2/latlong.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_map_tile_caching/flutter_map_tile_caching.dart';
 
 class SafetyCheckScreen extends StatefulWidget {
   final Map<String, dynamic> trip;
@@ -34,6 +37,7 @@ class _SafetyCheckScreenState extends State<SafetyCheckScreen> {
   // Real-time verification state
   bool _isVerifying = false;
   bool _isHelmetVerified = false;
+  bool _isOfflineMode = false;
   String? _verificationMessage;
 
   final ImagePicker _picker = ImagePicker();
@@ -41,6 +45,7 @@ class _SafetyCheckScreenState extends State<SafetyCheckScreen> {
   Future<void> _verifyHelmet() async {
     setState(() {
       _isVerifying = true;
+      _isOfflineMode = false;
       _verificationMessage = "Analyzing helmet...";
     });
 
@@ -71,12 +76,39 @@ class _SafetyCheckScreenState extends State<SafetyCheckScreen> {
         setState(() {
           _isVerifying = false;
           _isHelmetVerified = true;
+          _isOfflineMode = false;
           _verificationMessage = response['message'] ?? "Helmet Verified";
         });
       }
     } catch (e) {
       print("Verification error: $e");
       String errorMsg = e.toString();
+      bool isNetworkError =
+          errorMsg.contains("SocketException") ||
+          errorMsg.contains("HttpException") ||
+          errorMsg.contains("HandshakeException") ||
+          errorMsg.contains("TimeoutException") ||
+          errorMsg.contains("Failed host lookup");
+
+      if (isNetworkError) {
+        if (mounted) {
+          setState(() {
+            _isVerifying = false;
+            _isHelmetVerified = true; // Allow proceeding
+            _isOfflineMode = true;
+            _verificationMessage =
+                "Offline: Photo saved for later verification";
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Offline mode: Safety check will be synced later."),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
+
       if (errorMsg.contains("Exception: ")) {
         errorMsg = errorMsg.replaceAll("Exception: ", "");
       }
@@ -85,6 +117,7 @@ class _SafetyCheckScreenState extends State<SafetyCheckScreen> {
         setState(() {
           _isVerifying = false;
           _isHelmetVerified = false;
+          _isOfflineMode = false;
           _verificationMessage = errorMsg;
         });
         ScaffoldMessenger.of(context).showSnackBar(
@@ -207,17 +240,13 @@ class _SafetyCheckScreenState extends State<SafetyCheckScreen> {
       _isUploading = true;
     });
 
+    loc.LocationData? locData;
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
       final tripService = TripService(authService.token!);
+      await tripService.flushPendingEvents();
 
-      // Note: Image was already uploaded and verified in _verifyHelmet.
-      // We proceed directly to start the trip.
-      // If backend requires checklist data to be sent again, we would need a separate endpoint
-      // or we just re-upload. For now, assuming verification saved the image.
-
-      // 2. Start Trip or Return Trip
-      loc.LocationData? locData;
+      // 1. Get Location
       try {
         final location = loc.Location();
         bool _serviceEnabled = await location.serviceEnabled();
@@ -249,6 +278,24 @@ class _SafetyCheckScreenState extends State<SafetyCheckScreen> {
           locData.longitude!,
         );
       } else {
+        if (_isOfflineMode) {
+          // If we reached here in offline mode, we need to ensure the image and checklist are queued
+          final checklist = {
+            'brakes': _brakes,
+            'fuel': _fuel,
+            'lights': _lights,
+            'fitToDrive': _fitToDrive,
+          };
+          await tripService.enqueueEvent({
+            'type': 'safety_check',
+            'tripId': widget.trip['id'],
+            'filePath': kIsWeb ? _webImage!.path : _helmetImage!.path,
+            'checklist': checklist,
+            'ts': DateTime.now().toIso8601String(),
+          });
+        }
+
+        await tripService.flushPendingEvents();
         await tripService.startTrip(
           widget.trip['id'],
           lat: locData?.latitude,
@@ -259,10 +306,8 @@ class _SafetyCheckScreenState extends State<SafetyCheckScreen> {
       if (!mounted) return;
 
       if (widget.isReturnTrip) {
-        // Return Trip: Return to TripScreen and trigger refresh
         Navigator.pop(context, true);
       } else {
-        // Start Trip: Navigate to TripScreen (Active)
         final updatedTrip = Map<String, dynamic>.from(widget.trip);
         updatedTrip['active'] = true;
         updatedTrip['current_phase'] = 'ACTIVE';
@@ -270,6 +315,70 @@ class _SafetyCheckScreenState extends State<SafetyCheckScreen> {
           updatedTrip['origin_lat'] = locData.latitude;
           updatedTrip['origin_lng'] = locData.longitude;
         }
+        try {
+          final dLat = updatedTrip['dest_lat'] != null
+              ? _toDouble(updatedTrip['dest_lat'])
+              : null;
+          final dLng = updatedTrip['dest_lng'] != null
+              ? _toDouble(updatedTrip['dest_lng'])
+              : null;
+          if (dLat != null && dLng != null && locData != null) {
+            final route = await tripService.fetchBestRoute(
+              locData.latitude!,
+              locData.longitude!,
+              dLat,
+              dLng,
+            );
+            updatedTrip['route_path'] = route;
+            try {
+              final storeName = 'trip_${updatedTrip['id']}';
+              final store = FMTCStore(storeName);
+              await store.manage.create();
+
+              final minLat = [
+                locData.latitude!,
+                ...route.map((p) => p[0]),
+                dLat,
+              ].reduce((a, b) => a < b ? a : b);
+              final maxLat = [
+                locData.latitude!,
+                ...route.map((p) => p[0]),
+                dLat,
+              ].reduce((a, b) => a > b ? a : b);
+              final minLng = [
+                locData.longitude!,
+                ...route.map((p) => p[1]),
+                dLng,
+              ].reduce((a, b) => a < b ? a : b);
+              final maxLng = [
+                locData.longitude!,
+                ...route.map((p) => p[1]),
+                dLng,
+              ].reduce((a, b) => a > b ? a : b);
+
+              // FMTC v10 download logic
+              final downloadableRegion =
+                  RectangleRegion(
+                    LatLngBounds(
+                      LatLng(minLat, minLng),
+                      LatLng(maxLat, maxLng),
+                    ),
+                  ).toDownloadable(
+                    minZoom: 13,
+                    maxZoom: 17,
+                    options: TileLayer(
+                      urlTemplate:
+                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      userAgentPackageName: 'com.example.qaca_shield_app',
+                    ),
+                  );
+
+              store.download.startForeground(region: downloadableRegion);
+            } catch (e) {
+              print("Failed to pre-download tiles: $e");
+            }
+          }
+        } catch (_) {}
 
         Navigator.pushReplacement(
           context,
@@ -279,32 +388,9 @@ class _SafetyCheckScreenState extends State<SafetyCheckScreen> {
     } catch (e) {
       final authService2 = Provider.of<AuthService>(context, listen: false);
       final ts = TripService(authService2.token!);
-      final now = DateTime.now().toIso8601String();
       if (widget.isReturnTrip) {
-        if (locData != null) {
-          await ts.enqueueEvent({
-            'type': 'start_return',
-            'tripId': widget.trip['id'],
-            'lat': locData.latitude,
-            'lng': locData.longitude,
-            'ts': now
-          });
-        } else {
-          await ts.enqueueEvent({
-            'type': 'start_return',
-            'tripId': widget.trip['id'],
-            'ts': now
-          });
-        }
         if (mounted) Navigator.pop(context, true);
       } else {
-        await ts.enqueueEvent({
-          'type': 'start_trip',
-          'tripId': widget.trip['id'],
-          'lat': locData?.latitude,
-          'lng': locData?.longitude,
-          'ts': now
-        });
         if (mounted) {
           final updatedTrip = Map<String, dynamic>.from(widget.trip);
           updatedTrip['active'] = true;
@@ -313,6 +399,70 @@ class _SafetyCheckScreenState extends State<SafetyCheckScreen> {
             updatedTrip['origin_lat'] = locData.latitude;
             updatedTrip['origin_lng'] = locData.longitude;
           }
+          try {
+            final dLat = updatedTrip['dest_lat'] != null
+                ? _toDouble(updatedTrip['dest_lat'])
+                : null;
+            final dLng = updatedTrip['dest_lng'] != null
+                ? _toDouble(updatedTrip['dest_lng'])
+                : null;
+            if (dLat != null && dLng != null && locData != null) {
+              final route = await ts.fetchBestRoute(
+                locData.latitude!,
+                locData.longitude!,
+                dLat,
+                dLng,
+              );
+              updatedTrip['route_path'] = route;
+              try {
+                final storeName = 'trip_${updatedTrip['id']}';
+                final store = FMTCStore(storeName);
+                await store.manage.create();
+
+                final minLat = [
+                  locData.latitude!,
+                  ...route.map((p) => p[0]),
+                  dLat,
+                ].reduce((a, b) => a < b ? a : b);
+                final maxLat = [
+                  locData.latitude!,
+                  ...route.map((p) => p[0]),
+                  dLat,
+                ].reduce((a, b) => a > b ? a : b);
+                final minLng = [
+                  locData.longitude!,
+                  ...route.map((p) => p[1]),
+                  dLng,
+                ].reduce((a, b) => a < b ? a : b);
+                final maxLng = [
+                  locData.longitude!,
+                  ...route.map((p) => p[1]),
+                  dLng,
+                ].reduce((a, b) => a > b ? a : b);
+
+                // FMTC v10 download logic
+                final downloadableRegion =
+                    RectangleRegion(
+                      LatLngBounds(
+                        LatLng(minLat, minLng),
+                        LatLng(maxLat, maxLng),
+                      ),
+                    ).toDownloadable(
+                      minZoom: 13,
+                      maxZoom: 17,
+                      options: TileLayer(
+                        urlTemplate:
+                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        userAgentPackageName: 'com.example.qaca_shield_app',
+                      ),
+                    );
+
+                store.download.startForeground(region: downloadableRegion);
+              } catch (e) {
+                print("Failed to pre-download tiles (offline): $e");
+              }
+            }
+          } catch (_) {}
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (_) => TripScreen(trip: updatedTrip)),
@@ -326,6 +476,13 @@ class _SafetyCheckScreenState extends State<SafetyCheckScreen> {
         });
       }
     }
+  }
+
+  double _toDouble(dynamic value) {
+    if (value is double) return value;
+    if (value is String) return double.tryParse(value) ?? 0.0;
+    if (value is int) return value.toDouble();
+    return 0.0;
   }
 
   Widget _buildChecklistItem(

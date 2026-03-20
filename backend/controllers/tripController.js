@@ -328,7 +328,7 @@ export async function startTrip(req, res) {
 
 export async function completeTrip(req, res) {
   try {
-    const { tripId } = req.body;
+    const { tripId, lat, lng } = req.body;
     if (!tripId) return res.status(400).json({ error: "Missing tripId" });
 
     const trip = await Trip.findByPk(tripId);
@@ -338,13 +338,20 @@ export async function completeTrip(req, res) {
       return res.json({ ok: true, message: "Assignment already completed" });
     }
 
-    if (trip.current_phase !== "RETURNING_HOME") {
-      return res.status(400).json({ error: "Assignment must be in 'RETURNING_HOME' phase to complete." });
+    // Allow completion from RETURNING_HOME or REACHED_DESTINATION (for manual override)
+    if (trip.current_phase !== "RETURNING_HOME" && trip.current_phase !== "REACHED_DESTINATION") {
+      return res.status(400).json({ error: "Assignment must be in 'RETURNING_HOME' or 'REACHED_DESTINATION' phase to complete." });
     }
 
     trip.current_phase = "COMPLETED";
     trip.active = false;
     trip.actual_end_time = new Date();
+    
+    if (lat && lng) {
+      trip.completed_lat = lat;
+      trip.completed_lng = lng;
+    }
+
     await trip.save();
 
     try {
@@ -352,7 +359,9 @@ export async function completeTrip(req, res) {
       await Log.create({
         assignment_id: trip.id,
         type: "STATUS",
-        message: `Assignment ${assignmentId} completed`
+        message: `Assignment ${assignmentId} completed`,
+        lat: lat,
+        lng: lng
       });
     } catch (e) {
       console.error("Failed to log completion status:", e.message);
@@ -407,8 +416,16 @@ export async function earlyExitTrip(req, res) {
     trip.current_phase = "COMPLETED";
     trip.active = false;
     trip.actual_end_time = new Date();
+    if (lat && lng) {
+      trip.completed_lat = lat;
+      trip.completed_lng = lng;
+    }
     if (!trip.arrival_time) {
       trip.arrival_time = new Date();
+      if (lat && lng) {
+        trip.arrival_lat = lat;
+        trip.arrival_lng = lng;
+      }
     }
     await trip.save();
 
@@ -417,7 +434,9 @@ export async function earlyExitTrip(req, res) {
       await Log.create({
         assignment_id: trip.id,
         type: "STATUS",
-        message: `Assignment ${assignmentId} marked early exit (${reason})`
+        message: `Assignment ${assignmentId} marked early exit (${reason})`,
+        lat: lat,
+        lng: lng
       });
     } catch (e) {
       console.error("Failed to log early-exit status:", e.message);
@@ -509,6 +528,10 @@ export async function reachDestination(req, res) {
 
     trip.current_phase = "REACHED_DESTINATION";
     trip.arrival_time = new Date();
+    if (lat && lng) {
+      trip.arrival_lat = lat;
+      trip.arrival_lng = lng;
+    }
     // Keep active = true because assignment isn't over
     await trip.save();
 
@@ -517,7 +540,9 @@ export async function reachDestination(req, res) {
       await Log.create({
         assignment_id: trip.id,
         type: "STATUS",
-        message: `Assignment ${assignmentId} reached destination`
+        message: `Assignment ${assignmentId} reached destination`,
+        lat: lat,
+        lng: lng
       });
     } catch (e) {
       console.error("Failed to log reached-destination status:", e.message);

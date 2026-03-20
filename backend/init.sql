@@ -50,7 +50,11 @@ CREATE TABLE IF NOT EXISTS assignments (
   actual_start_time DATETIME NULL,
   actual_end_time DATETIME NULL,
   arrival_time DATETIME NULL,
+  arrival_lat DECIMAL(10,7),
+  arrival_lng DECIMAL(10,7),
   return_time DATETIME NULL,
+  completed_lat DECIMAL(10,7),
+  completed_lng DECIMAL(10,7),
   current_lat DECIMAL(10,7),
   current_lng DECIMAL(10,7),
   current_phase ENUM(

@@ -23,6 +23,18 @@
   transform: translateY(-5px);
 }
 
+@media (max-width: 480px) {
+  .login-form {
+    padding: 30px 20px;
+    margin: 0 16px;
+    border-radius: var(--radius-md);
+  }
+
+  .login-form h2 {
+    font-size: 1.5rem;
+  }
+}
+
 .logo-container {
   display: flex;
   justify-content: center;

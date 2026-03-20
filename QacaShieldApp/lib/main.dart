@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_map_tile_caching/flutter_map_tile_caching.dart';
 import 'config/constants.dart';
 import 'services/auth_service.dart';
 import 'services/notification_service.dart';
@@ -9,6 +10,13 @@ import 'screens/dashboard_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  try {
+    await FMTCObjectBoxBackend().initialise();
+  } catch (e) {
+    print("FMTC initialization failed: $e");
+  }
+
   if (AppConstants.enableFirebase) {
     try {
       await Firebase.initializeApp();

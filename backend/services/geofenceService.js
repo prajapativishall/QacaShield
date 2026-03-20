@@ -8,12 +8,20 @@ export function startReturnHomeMonitor(sequelize, io) {
   const inRadiusState = new Map();
   setInterval(async () => {
     const trips = await Trip.findAll({
-      where: { current_phase: "RETURNING_HOME", active: true }
+      where: { 
+        current_phase: ["RETURNING_HOME", "REACHED_DESTINATION"], 
+        active: true 
+      }
     });
     for (const trip of trips) {
       const targetLat = trip.home_lat ?? trip.origin_lat;
       const targetLng = trip.home_lng ?? trip.origin_lng;
       if (!targetLat || !targetLng || !trip.current_lat || !trip.current_lng) continue;
+      
+      // If in REACHED_DESTINATION, only auto-finalize if they have actually moved AWAY from destination first
+      // OR if they are very close to home. 
+      // For simplicity, if they are in REACHED_DESTINATION and within home radius, we assume they returned.
+      
       const dist = haversine(
         Number(trip.current_lat),
         Number(trip.current_lng),
@@ -39,13 +47,17 @@ export function startReturnHomeMonitor(sequelize, io) {
           trip.current_phase = "FINALIZED";
           trip.active = false;
           trip.actual_end_time = new Date();
+          trip.completed_lat = trip.current_lat;
+          trip.completed_lng = trip.current_lng;
           await trip.save();
           try {
             const assignmentId = trip.task_title || `#${trip.id}`;
             await Log.create({
               assignment_id: trip.id,
               type: "STATUS",
-              message: `Assignment ${assignmentId} finalized (auto return home)`
+              message: `Assignment ${assignmentId} finalized (auto return home)`,
+              lat: trip.current_lat,
+              lng: trip.current_lng
             });
           } catch (e) {
             console.error("Failed to log finalized status:", e.message);
@@ -103,13 +115,17 @@ export function startDestinationArrivalMonitor(sequelize, io) {
           inRadiusState.delete(trip.id);
           trip.current_phase = "REACHED_DESTINATION";
           trip.arrival_time = new Date();
+          trip.arrival_lat = trip.current_lat;
+          trip.arrival_lng = trip.current_lng;
           await trip.save();
           try {
             const assignmentId = trip.task_title || `#${trip.id}`;
             await Log.create({
               assignment_id: trip.id,
               type: "STATUS",
-              message: `Assignment ${assignmentId} reached destination (auto geofence)`
+              message: `Assignment ${assignmentId} reached destination (auto geofence)`,
+              lat: trip.current_lat,
+              lng: trip.current_lng
             });
           } catch (e) {
             console.error("Failed to log reached-destination status:", e.message);

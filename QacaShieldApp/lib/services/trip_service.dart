@@ -19,18 +19,34 @@ class TripService {
 
   Future<List<dynamic>> fetchMyTrips() async {
     final url = Uri.parse('${AppConstants.baseUrl}/assignments/my-trips');
-    final response = await http.get(
-      url,
-      headers: {'Authorization': 'Bearer $token'},
-    );
+    final prefs = await SharedPreferences.getInstance();
 
-    if (response.statusCode == 200) {
-      return json.decode(response.body);
-    } else if (response.statusCode == 401 || response.statusCode == 403) {
-      throw AuthException('Session expired');
-    } else {
-      print('Failed to load trips: ${response.statusCode} ${response.body}');
-      throw Exception('Failed to load assignments: ${response.statusCode}');
+    try {
+      final response = await http.get(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        await prefs.setString('cached_my_trips', response.body);
+        return data;
+      } else if (response.statusCode == 401 || response.statusCode == 403) {
+        throw AuthException('Session expired');
+      } else {
+        print('Failed to load trips: ${response.statusCode} ${response.body}');
+        throw Exception('Failed to load assignments: ${response.statusCode}');
+      }
+    } catch (e) {
+      if (e is AuthException) rethrow;
+
+      // Offline: Try to load from cache
+      final cached = prefs.getString('cached_my_trips');
+      if (cached != null) {
+        print('Offline: Loading trips from cache');
+        return json.decode(cached);
+      }
+      rethrow;
     }
   }
 
@@ -62,35 +78,78 @@ class TripService {
     final url = Uri.parse(
       '${AppConstants.baseUrl}/assignments/my-history',
     ).replace(queryParameters: query.isEmpty ? null : query);
-    final response = await http.get(
-      url,
-      headers: {'Authorization': 'Bearer $token'},
-    );
-    if (response.statusCode == 200) {
-      return json.decode(response.body);
-    } else if (response.statusCode == 404) {
-      // Fallback for older backend: use completed endpoint
-      return await fetchMyCompletedTrips();
-    } else if (response.statusCode == 401 || response.statusCode == 403) {
-      throw AuthException('Session expired');
-    } else {
-      print('Failed to load history: ${response.statusCode} ${response.body}');
-      throw Exception('Failed to load assignment history');
+    final prefs = await SharedPreferences.getInstance();
+    final cacheKey = 'cached_history_${year}_$month';
+
+    try {
+      final response = await http.get(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        await prefs.setString(cacheKey, response.body);
+        return data;
+      } else if (response.statusCode == 404) {
+        return await fetchMyCompletedTrips();
+      } else if (response.statusCode == 401 || response.statusCode == 403) {
+        throw AuthException('Session expired');
+      } else {
+        print(
+          'Failed to load history: ${response.statusCode} ${response.body}',
+        );
+        throw Exception('Failed to load assignment history');
+      }
+    } catch (e) {
+      if (e is AuthException) rethrow;
+      final cached = prefs.getString(cacheKey);
+      if (cached != null) {
+        print('Offline: Loading history from cache');
+        return json.decode(cached);
+      }
+      rethrow;
     }
   }
 
-  Future<void> sendGpsPing(int tripId, double lat, double lng) async {
+  Future<void> sendGpsPing(
+    int tripId,
+    double lat,
+    double lng, {
+    bool isFlushing = false,
+  }) async {
     final url = Uri.parse('${AppConstants.baseUrl}/assignments/gps-ping');
-    await http.post(
-      url,
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-        'x-trip-id': tripId.toString(),
-      },
-      body: json.encode({'lat': lat, 'lng': lng}),
-    );
-    await flushPendingEvents();
+    try {
+      final response = await http
+          .post(
+            url,
+            headers: {
+              'Authorization': 'Bearer $token',
+              'Content-Type': 'application/json',
+              'x-trip-id': tripId.toString(),
+            },
+            body: json.encode({'lat': lat, 'lng': lng}),
+          )
+          .timeout(Duration(seconds: 5));
+
+      if (response.statusCode == 200) {
+        if (!isFlushing) await flushPendingEvents();
+      } else {
+        throw Exception('Ping failed: ${response.statusCode}');
+      }
+    } catch (_) {
+      // Offline: Enqueue for later (only if not already flushing)
+      if (!isFlushing) {
+        await enqueueEvent({
+          'type': 'gps_ping',
+          'tripId': tripId,
+          'lat': lat,
+          'lng': lng,
+          'ts': DateTime.now().toIso8601String(),
+        });
+      } else {
+        rethrow; // Rethrow to keep it in the remaining list
+      }
+    }
   }
 
   Future<void> sendAlert(
@@ -100,19 +159,35 @@ class TripService {
     double lng,
   ) async {
     final url = Uri.parse('${AppConstants.baseUrl}/assignments/alert');
-    await http.post(
-      url,
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-      body: json.encode({
-        'assignment_id': tripId,
-        'type': type,
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({
+          'assignment_id': tripId,
+          'type': type,
+          'lat': lat,
+          'lng': lng,
+        }),
+      );
+      if (response.statusCode != 200) {
+        throw Exception('Alert failed: ${response.statusCode}');
+      }
+    } catch (e) {
+      // Offline: Enqueue for later
+      await enqueueEvent({
+        'type': 'alert',
+        'tripId': tripId,
+        'alertType': type,
         'lat': lat,
         'lng': lng,
-      }),
-    );
+        'ts': DateTime.now().toIso8601String(),
+      });
+      rethrow;
+    }
   }
 
   Future<Map<String, dynamic>> uploadSafetyCheck(
@@ -195,33 +270,63 @@ class TripService {
       body['lng'] = lng;
     }
 
-    final response = await http.post(
-      url,
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-      body: json.encode(body),
-    );
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode(body),
+      );
 
-    if (response.statusCode != 200) {
-      throw Exception('Failed to start assignment: ${response.body}');
+      if (response.statusCode != 200) {
+        throw Exception('Failed to start assignment: ${response.body}');
+      }
+    } catch (e) {
+      // Offline: Enqueue for later
+      await enqueueEvent({
+        'type': 'start_trip',
+        'tripId': tripId,
+        'lat': lat,
+        'lng': lng,
+        'ts': DateTime.now().toIso8601String(),
+      });
+      rethrow;
     }
   }
 
-  Future<void> completeTrip(int tripId) async {
+  Future<void> completeTrip(int tripId, {double? lat, double? lng}) async {
     final url = Uri.parse('${AppConstants.baseUrl}/assignments/complete');
-    final response = await http.post(
-      url,
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-      body: json.encode({'tripId': tripId}),
-    );
+    final Map<String, dynamic> body = {'tripId': tripId};
+    if (lat != null && lng != null) {
+      body['lat'] = lat;
+      body['lng'] = lng;
+    }
 
-    if (response.statusCode != 200) {
-      throw Exception('Failed to complete assignment: ${response.body}');
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode(body),
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('Failed to complete assignment: ${response.body}');
+      }
+    } catch (e) {
+      // Offline: Enqueue for later
+      await enqueueEvent({
+        'type': 'complete_trip',
+        'tripId': tripId,
+        'lat': lat,
+        'lng': lng,
+        'ts': DateTime.now().toIso8601String(),
+      });
+      rethrow;
     }
   }
 
@@ -235,17 +340,29 @@ class TripService {
       body['lng'] = lng;
     }
 
-    final response = await http.post(
-      url,
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-      body: json.encode(body),
-    );
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode(body),
+      );
 
-    if (response.statusCode != 200) {
-      throw Exception('Failed to mark arrival: ${response.body}');
+      if (response.statusCode != 200) {
+        throw Exception('Failed to reach destination: ${response.body}');
+      }
+    } catch (e) {
+      // Offline: Enqueue for later
+      await enqueueEvent({
+        'type': 'reach_destination',
+        'tripId': tripId,
+        'lat': lat,
+        'lng': lng,
+        'ts': DateTime.now().toIso8601String(),
+      });
+      rethrow;
     }
   }
 
@@ -262,33 +379,58 @@ class TripService {
       body['lng'] = lng;
     }
 
-    final response = await http.post(
-      url,
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-      body: json.encode(body),
-    );
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode(body),
+      );
 
-    if (response.statusCode != 200) {
-      throw Exception('Failed to mark early exit: ${response.body}');
+      if (response.statusCode != 200) {
+        throw Exception('Failed to mark early exit: ${response.body}');
+      }
+    } catch (e) {
+      // Offline: Enqueue for later
+      await enqueueEvent({
+        'type': 'early_exit',
+        'tripId': tripId,
+        'reason': reason,
+        'lat': lat,
+        'lng': lng,
+        'ts': DateTime.now().toIso8601String(),
+      });
+      rethrow;
     }
   }
 
   Future<void> startReturnTrip(int tripId, double lat, double lng) async {
     final url = Uri.parse('${AppConstants.baseUrl}/assignments/return-home');
-    final response = await http.post(
-      url,
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-      body: json.encode({'tripId': tripId, 'lat': lat, 'lng': lng}),
-    );
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({'tripId': tripId, 'lat': lat, 'lng': lng}),
+      );
 
-    if (response.statusCode != 200) {
-      throw Exception('Failed to start return trip: ${response.body}');
+      if (response.statusCode != 200) {
+        throw Exception('Failed to start return trip: ${response.body}');
+      }
+    } catch (e) {
+      // Offline: Enqueue for later
+      await enqueueEvent({
+        'type': 'start_return',
+        'tripId': tripId,
+        'lat': lat,
+        'lng': lng,
+        'ts': DateTime.now().toIso8601String(),
+      });
+      rethrow;
     }
   }
 
@@ -306,6 +448,33 @@ class TripService {
       throw Exception(
         'Failed to load offline route: ${response.statusCode} ${response.body}',
       );
+    }
+  }
+
+  Future<List<List<double>>> fetchBestRoute(
+    double originLat,
+    double originLng,
+    double destLat,
+    double destLng,
+  ) async {
+    final origin = '$originLat,$originLng';
+    final destination = '$destLat,$destLng';
+    final url = Uri.parse(
+      '${AppConstants.baseUrl}/trips/best-route?origin=$origin&destination=$destination',
+    );
+    final response = await http.get(
+      url,
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      if (data is Map && data['route_path'] is List) {
+        final List<dynamic> raw = data['route_path'];
+        return raw.map<List<double>>((p) => [p[0] * 1.0, p[1] * 1.0]).toList();
+      }
+      throw Exception('Route response missing route_path');
+    } else {
+      throw Exception('Failed to fetch route: ${response.statusCode}');
     }
   }
 
@@ -330,13 +499,27 @@ class TripService {
         if (type == 'reach_destination') {
           await reachDestination(m['tripId'], lat: m['lat'], lng: m['lng']);
         } else if (type == 'complete_trip') {
-          await completeTrip(m['tripId']);
+          await completeTrip(m['tripId'], lat: m['lat'], lng: m['lng']);
+        } else if (type == 'gps_ping') {
+          await sendGpsPing(m['tripId'], m['lat'], m['lng'], isFlushing: true);
+        } else if (type == 'safety_check') {
+          final Map<String, bool> checklist = Map<String, bool>.from(
+            m['checklist'] as Map,
+          );
+          await uploadSafetyCheck(m['tripId'], m['filePath'], checklist);
         } else if (type == 'early_exit') {
-          await earlyExitTrip(m['tripId'], m['reason'] ?? '', lat: m['lat'], lng: m['lng']);
+          await earlyExitTrip(
+            m['tripId'],
+            m['reason'] ?? '',
+            lat: m['lat'],
+            lng: m['lng'],
+          );
         } else if (type == 'start_return') {
           await startReturnTrip(m['tripId'], m['lat'], m['lng']);
         } else if (type == 'start_trip') {
           await startTrip(m['tripId'], lat: m['lat'], lng: m['lng']);
+        } else if (type == 'alert') {
+          await sendAlert(m['tripId'], m['alertType'], m['lat'], m['lng']);
         } else {
           remaining.add(e);
         }

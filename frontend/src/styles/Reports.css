@@ -17,12 +17,11 @@
   display: flex;
   gap: var(--spacing-md);
   margin-bottom: var(--spacing-lg);
-  flex-wrap: nowrap; /* Prevent wrapping to keep in one line */
+  flex-wrap: wrap; /* Changed from nowrap to wrap for mobile */
   background-color: var(--bg-body);
   padding: var(--spacing-md);
   border-radius: var(--radius-md);
   border: 1px solid var(--border-color);
-  overflow-x: auto; /* Allow scrolling if screen is too small */
 }
 
 .filter-group {
@@ -30,7 +29,22 @@
   flex-direction: column;
   gap: 6px;
   flex: 1;
-  min-width: 140px; /* Reduced width */
+  min-width: 200px; /* Increased min-width for better wrapping */
+}
+
+@media (max-width: 768px) {
+  .filters-container {
+    flex-direction: column;
+  }
+  
+  .filter-group {
+    min-width: 100%;
+  }
+
+  .reports-table th:nth-child(n+4), 
+  .reports-table td:nth-child(n+4) {
+    display: none; /* Hide less important columns on mobile */
+  }
 }
 
 .filter-group label {
