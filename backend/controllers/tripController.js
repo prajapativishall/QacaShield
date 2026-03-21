@@ -2,7 +2,26 @@ import { Trip } from "../models/Trip.js";
 import { User } from "../models/User.js";
 import { Log } from "../models/Log.js";
 import { fetchBestRoutePolyline, getRouteFromCoords, geocodeAddress, geocodeSuggestions } from "../services/routingService.js";
-import { sendPushNotification } from "../services/notificationService.js";
+import { sendPushNotification, broadcastToAdmins } from "../services/notificationService.js";
+
+// Helper for status notifications
+async function notifyStatusChange(trip, status) {
+  try {
+    const user = await User.findByPk(trip.user_id);
+    const title = `Assignment Update: ${status}`;
+    const message = `Assignment: ${trip.task_title || `#${trip.id}`}\nRider: ${user?.name || "Unknown"}\nNew Status: ${status}`;
+    
+    // Notify Admin
+    broadcastToAdmins(title, message);
+    
+    // Notify User via Push
+    if (user?.fcm_token) {
+      await sendPushNotification(user.fcm_token, title, message, { tripId: trip.id });
+    }
+  } catch (err) {
+    console.error("Failed to send status notification:", err.message);
+  }
+}
 import { Op } from "sequelize";
 
 export async function createTrip(req, res) {
@@ -107,6 +126,8 @@ export async function createTrip(req, res) {
   } catch (e) {
     console.error("Failed to log assignment creation:", e.message);
   }
+
+  notifyStatusChange(trip, "Assignment Created (PENDING)");
 
   res.status(201).json({ id: trip.id });
 }
@@ -227,6 +248,8 @@ export async function acceptTrip(req, res) {
     trip.current_phase = "ACCEPTED";
     await trip.save();
 
+    notifyStatusChange(trip, "Assignment Accepted");
+
     try {
       const assignmentId = trip.task_title || `#${trip.id}`;
       await Log.create({
@@ -308,6 +331,8 @@ export async function startTrip(req, res) {
     trip.actual_start_time = new Date();
     await trip.save();
 
+    notifyStatusChange(trip, "Assignment Started (ACTIVE)");
+
     try {
       const assignmentId = trip.task_title || `#${trip.id}`;
       await Log.create({
@@ -353,6 +378,8 @@ export async function completeTrip(req, res) {
     }
 
     await trip.save();
+
+    notifyStatusChange(trip, "Assignment Completed");
 
     try {
       const assignmentId = trip.task_title || `#${trip.id}`;
@@ -429,6 +456,8 @@ export async function earlyExitTrip(req, res) {
     }
     await trip.save();
 
+    notifyStatusChange(trip, `Assignment Early Exit: ${reason}`);
+
     try {
       const assignmentId = trip.task_title || `#${trip.id}`;
       await Log.create({
@@ -465,6 +494,8 @@ export async function cancelTrip(req, res) {
     trip.active = false;
     trip.actual_end_time = new Date();
     await trip.save();
+
+    notifyStatusChange(trip, "Assignment Cancelled");
 
     try {
       const assignmentId = trip.task_title || `#${trip.id}`;
@@ -535,6 +566,8 @@ export async function reachDestination(req, res) {
     // Keep active = true because assignment isn't over
     await trip.save();
 
+    notifyStatusChange(trip, "Rider Reached Destination");
+
     try {
       const assignmentId = trip.task_title || `#${trip.id}`;
       await Log.create({
@@ -584,6 +617,8 @@ export async function startReturnTrip(req, res) {
     trip.return_time = new Date();
     trip.current_phase = "RETURNING_HOME";
     await trip.save();
+
+    notifyStatusChange(trip, "Rider Started Return Trip");
 
     try {
       const assignmentId = trip.task_title || `#${trip.id}`;
