@@ -4,16 +4,18 @@ import { User } from "../models/User.js";
 import { broadcastToAdmins, sendPushNotification } from "./notificationService.js";
 
 // Helper for automated status notifications
-async function notifyAutoStatusChange(trip, status) {
+async function notifyAutoStatusChange(trip, status, notifyAdmin = false) {
   try {
     const user = await User.findByPk(trip.user_id);
     const title = `Automated Update: ${status}`;
     const message = `Assignment: ${trip.task_title || `#${trip.id}`}\nRider: ${user?.name || "Unknown"}\nNew Status: ${status}`;
     
-    // Notify Admin
-    broadcastToAdmins(title, message);
+    // Notify Admin only if explicitly requested
+    if (notifyAdmin) {
+      await broadcastToAdmins(title, message);
+    }
     
-    // Notify User via Push
+    // Notify User via Push always
     if (user?.fcm_token) {
       sendPushNotification(user.fcm_token, title, message, { tripId: trip.id });
     }
@@ -70,7 +72,7 @@ export function startGeofenceMonitor(io) {
             trip.completed_lng = trip.current_lng;
             await trip.save();
 
-            notifyAutoStatusChange(trip, "Finalized (Auto Return Home)");
+            notifyAutoStatusChange(trip, "Finalized (Auto Return Home)", true);
 
             try {
               const assignmentId = trip.task_title || `#${trip.id}`;
