@@ -3,14 +3,36 @@ import { Trip } from "../models/Trip.js";
 import { User } from "../models/User.js";
 import { broadcastToAdmins } from "../services/notificationService.js";
 
+// Cache for alert deduplication (tripId_type_lat_lng -> timestamp)
+const alertCache = new Map();
+const DEDUPLICATION_WINDOW_MS = 60000; // 1 minute
+
 export async function createAlert(req, res) {
   try {
     const { assignment_id, message, type, lat, lng } = req.body;
     
+    if (!assignment_id) return res.status(400).json({ error: "Missing assignment_id" });
+
+    // Deduplication Logic
+    const cacheKey = `${assignment_id}_${type}_${lat}_${lng}`;
+    const now = Date.now();
+    const lastAlertTime = alertCache.get(cacheKey);
+
+    if (lastAlertTime && (now - lastAlertTime < DEDUPLICATION_WINDOW_MS)) {
+      console.log(`Deduplicating SOS alert for assignment ${assignment_id}`);
+      return res.status(200).json({ ok: true, message: "Duplicate alert suppressed" });
+    }
+    alertCache.set(cacheKey, now);
+
+    // Periodic cleanup of old cache entries
+    if (alertCache.size > 1000) {
+      for (const [key, timestamp] of alertCache.entries()) {
+        if (now - timestamp > DEDUPLICATION_WINDOW_MS) alertCache.delete(key);
+      }
+    }
+    
     // Mobile app sends 'type', 'lat', 'lng', but might miss 'message'
     const finalMessage = message || (type === 'SOS' ? 'SOS Alert Triggered' : 'Safety Alert');
-    
-    if (!assignment_id) return res.status(400).json({ error: "Missing assignment_id" });
     
     const log = await Log.create({ 
         assignment_id, 

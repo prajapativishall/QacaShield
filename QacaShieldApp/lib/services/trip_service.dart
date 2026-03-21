@@ -156,36 +156,42 @@ class TripService {
     int tripId,
     String type,
     double lat,
-    double lng,
-  ) async {
+    double lng, {
+    bool isFlushing = false,
+  }) async {
     final url = Uri.parse('${AppConstants.baseUrl}/assignments/alert');
     try {
-      final response = await http.post(
-        url,
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: json.encode({
-          'assignment_id': tripId,
-          'type': type,
-          'lat': lat,
-          'lng': lng,
-        }),
-      );
-      if (response.statusCode != 200) {
+      final response = await http
+          .post(
+            url,
+            headers: {
+              'Authorization': 'Bearer $token',
+              'Content-Type': 'application/json',
+            },
+            body: json.encode({
+              'assignment_id': tripId,
+              'type': type,
+              'lat': lat,
+              'lng': lng,
+            }),
+          )
+          .timeout(Duration(seconds: 10));
+
+      if (response.statusCode != 200 && response.statusCode != 201) {
         throw Exception('Alert failed: ${response.statusCode}');
       }
     } catch (e) {
-      // Offline: Enqueue for later
-      await enqueueEvent({
-        'type': 'alert',
-        'tripId': tripId,
-        'alertType': type,
-        'lat': lat,
-        'lng': lng,
-        'ts': DateTime.now().toIso8601String(),
-      });
+      // Offline: Enqueue for later (only if not already flushing)
+      if (!isFlushing) {
+        await enqueueEvent({
+          'type': 'alert',
+          'tripId': tripId,
+          'alertType': type,
+          'lat': lat,
+          'lng': lng,
+          'ts': DateTime.now().toIso8601String(),
+        });
+      }
       rethrow;
     }
   }
@@ -519,7 +525,13 @@ class TripService {
         } else if (type == 'start_trip') {
           await startTrip(m['tripId'], lat: m['lat'], lng: m['lng']);
         } else if (type == 'alert') {
-          await sendAlert(m['tripId'], m['alertType'], m['lat'], m['lng']);
+          await sendAlert(
+            m['tripId'],
+            m['alertType'],
+            m['lat'],
+            m['lng'],
+            isFlushing: true,
+          );
         } else {
           remaining.add(e);
         }
