@@ -5,7 +5,7 @@ import cors from "cors";
 import { initDB, sequelize } from "./config/db.js";
 import { initSocket } from "./config/socket.js";
 import apiRouter from "./routes/api.js";
-import { startReturnHomeMonitor, startDestinationArrivalMonitor } from "./services/geofenceService.js";
+import { startGeofenceMonitor } from "./services/geofenceService.js";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -38,18 +38,10 @@ const io = initSocket(server);
 
 async function bootstrap() {
   await initDB();
-  const enableReturnMonitor = (process.env.RETURN_HOME_MONITOR_ENABLED ?? "true") !== "false";
-  const enableDestinationMonitor = (process.env.DESTINATION_ARRIVAL_MONITOR_ENABLED ?? "true") !== "false";
-  if (enableReturnMonitor) {
-    startReturnHomeMonitor(sequelize, io);
-  } else {
-    console.log("Return-home monitor disabled by env");
-  }
-  if (enableDestinationMonitor) {
-    startDestinationArrivalMonitor(sequelize, io);
-  } else {
-    console.log("Destination arrival monitor disabled by env");
-  }
+  
+  // Start the unified geofence monitor
+  startGeofenceMonitor(io);
+
   const port = process.env.PORT || 4000;
   server.listen(port, "0.0.0.0", () => {
     console.log(`QacaShield backend listening on :${port}`);

@@ -1,8 +1,9 @@
 import { Trip } from "../models/Trip.js";
 import { User } from "../models/User.js";
 import { Log } from "../models/Log.js";
+import { Op } from "sequelize";
 import { fetchBestRoutePolyline, getRouteFromCoords, geocodeAddress, geocodeSuggestions } from "../services/routingService.js";
-import { sendPushNotification, broadcastToAdmins } from "../services/notificationService.js";
+import { broadcastToAdmins, sendPushNotification } from "../services/notificationService.js";
 
 // Helper for status notifications
 async function notifyStatusChange(trip, status) {
@@ -22,7 +23,6 @@ async function notifyStatusChange(trip, status) {
     console.error("Failed to send status notification:", err.message);
   }
 }
-import { Op } from "sequelize";
 
 export async function createTrip(req, res) {
   let { 
