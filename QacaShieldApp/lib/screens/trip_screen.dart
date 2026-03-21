@@ -473,7 +473,7 @@ class _TripScreenState extends State<TripScreen>
         ).showSnackBar(SnackBar(content: Text("Route updated")));
       }
     } catch (e) {
-      // Offline Reroute Fallback: Straight line to destination
+      // Offline Reroute Fallback: Straight line from current location to destination
       final fallbackPoints = [_currentLocation!, LatLng(dLat, dLng)];
       setState(() {
         _routePoints = fallbackPoints;
@@ -483,6 +483,9 @@ class _TripScreenState extends State<TripScreen>
           [dLat, dLng],
         ];
       });
+      // Refresh markers to ensure current location and destination are shown correctly
+      await _setupMap();
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("Offline: Using direct path to destination"),
@@ -779,21 +782,37 @@ class _TripScreenState extends State<TripScreen>
       );
     } catch (e) {
       if (!mounted) return;
-      showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: Text("SOS Recorded", style: TextStyle(color: Colors.orange)),
-          content: Text(
-            "You are offline. The SOS alert has been recorded and will be sent automatically once you are back online.",
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text("OK"),
+
+      // Determine if it was truly a network error
+      final errorStr = e.toString().toLowerCase();
+      final isNetworkError =
+          errorStr.contains('socketexception') ||
+          errorStr.contains('httpexception') ||
+          errorStr.contains('handshakeexception') ||
+          errorStr.contains('timeout');
+
+      if (isNetworkError) {
+        showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: Text("SOS Recorded", style: TextStyle(color: Colors.orange)),
+            content: Text(
+              "You are offline. The SOS alert has been recorded and will be sent automatically once you are back online.",
             ),
-          ],
-        ),
-      );
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text("OK"),
+              ),
+            ],
+          ),
+        );
+      } else {
+        // It was a server-side error or something else, but we were online
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Failed to send SOS: $e")));
+      }
     }
   }
 
