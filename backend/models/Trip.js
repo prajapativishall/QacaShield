@@ -31,11 +31,15 @@ export const Trip = sequelize.define(
     
     // Completion Data
     actual_start_time: { type: DataTypes.DATE, allowNull: true },
+    actual_start_lat: { type: DataTypes.DECIMAL(10, 7), allowNull: true },
+    actual_start_lng: { type: DataTypes.DECIMAL(10, 7), allowNull: true },
     actual_end_time: { type: DataTypes.DATE, allowNull: true },
     arrival_time: { type: DataTypes.DATE, allowNull: true },
     arrival_lat: { type: DataTypes.DECIMAL(10, 7), allowNull: true },
     arrival_lng: { type: DataTypes.DECIMAL(10, 7), allowNull: true },
     return_time: { type: DataTypes.DATE, allowNull: true },
+    return_start_lat: { type: DataTypes.DECIMAL(10, 7), allowNull: true },
+    return_start_lng: { type: DataTypes.DECIMAL(10, 7), allowNull: true },
     completed_lat: { type: DataTypes.DECIMAL(10, 7), allowNull: true },
     completed_lng: { type: DataTypes.DECIMAL(10, 7), allowNull: true },
     current_lat: { type: DataTypes.DECIMAL(10, 7), allowNull: true },

@@ -319,6 +319,10 @@ export async function startTrip(req, res) {
         trip.origin_lat = lat;
         trip.origin_lng = lng;
 
+        // Save actual start coordinates
+        trip.actual_start_lat = lat;
+        trip.actual_start_lng = lng;
+
         // Calculate route if destination exists
         if (trip.dest_lat && trip.dest_lng) {
             const { polyline } = await getRouteFromCoords(lat, lng, trip.dest_lat, trip.dest_lng);
@@ -609,6 +613,10 @@ export async function startReturnTrip(req, res) {
     trip.dest_lat = trip.home_lat;
     trip.dest_lng = trip.home_lng;
     trip.destination_address = "Returning Home";
+
+    // Save return start coordinates
+    trip.return_start_lat = lat;
+    trip.return_start_lng = lng;
 
     // Recalculate route if possible (simplified here, ideally call route service)
     const { polyline } = await fetchBestRoutePolyline(

@@ -542,8 +542,25 @@ export function Reports() {
 
               <div className="detail-section">
                 <h4>Route Details</h4>
-                <p><strong>Origin:</strong> {selectedTrip.origin_lat}, {selectedTrip.origin_lng}</p>
-                <p><strong>Destination:</strong> {selectedTrip.dest_lat}, {selectedTrip.dest_lng}</p>
+                <p><strong>Origin (Planned):</strong> {selectedTrip.origin_lat}, {selectedTrip.origin_lng}</p>
+                <p><strong>Destination (Planned):</strong> {selectedTrip.dest_lat}, {selectedTrip.dest_lng}</p>
+                
+                {selectedTrip.actual_start_lat && (
+                  <p><strong>Actual Start:</strong> {selectedTrip.actual_start_lat}, {selectedTrip.actual_start_lng}</p>
+                )}
+
+                {selectedTrip.arrival_lat && (
+                  <p><strong>Actual Arrival:</strong> {selectedTrip.arrival_lat}, {selectedTrip.arrival_lng}</p>
+                )}
+                
+                {selectedTrip.return_start_lat && (
+                  <p><strong>Return Start:</strong> {selectedTrip.return_start_lat}, {selectedTrip.return_start_lng} <span style={{fontSize: '0.8rem', color: '#666'}}>(at {new Date(selectedTrip.return_time).toLocaleString()})</span></p>
+                )}
+
+                {selectedTrip.completed_lat && (
+                  <p><strong>Actual Completion:</strong> {selectedTrip.completed_lat}, {selectedTrip.completed_lng}</p>
+                )}
+
                 {(selectedTrip.helmet_start_image_url || selectedTrip.helmet_return_image_url || selectedTrip.helmet_image_url) && (
                     <div className="helmet-check-section">
                         <p><strong>Helmet Check:</strong> Verified</p>

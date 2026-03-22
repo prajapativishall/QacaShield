@@ -98,8 +98,12 @@ export async function initDB() {
     await addColumnIfNotExists('assignments', 'buffer_time', 'INTEGER DEFAULT 15');
     await addColumnIfNotExists('assignments', 'actual_start_time', 'DATETIME NULL');
     await addColumnIfNotExists('assignments', 'actual_end_time', 'DATETIME NULL');
+    await addColumnIfNotExists('assignments', 'actual_start_lat', 'DECIMAL(10, 7) NULL');
+    await addColumnIfNotExists('assignments', 'actual_start_lng', 'DECIMAL(10, 7) NULL');
     await addColumnIfNotExists('assignments', 'arrival_lat', 'DECIMAL(10, 7) NULL');
     await addColumnIfNotExists('assignments', 'arrival_lng', 'DECIMAL(10, 7) NULL');
+    await addColumnIfNotExists('assignments', 'return_start_lat', 'DECIMAL(10, 7) NULL');
+    await addColumnIfNotExists('assignments', 'return_start_lng', 'DECIMAL(10, 7) NULL');
     await addColumnIfNotExists('assignments', 'completed_lat', 'DECIMAL(10, 7) NULL');
     await addColumnIfNotExists('assignments', 'completed_lng', 'DECIMAL(10, 7) NULL');
     await addColumnIfNotExists('assignments', 'arrival_time', 'DATETIME NULL');
