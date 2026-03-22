@@ -631,6 +631,12 @@ class _TripScreenState extends State<TripScreen>
       enable: true,
     ); // Important for background tracking
 
+    _location.changeSettings(
+      accuracy: LocationAccuracy.high,
+      interval: 5000, // 5 seconds
+      distanceFilter: 10, // 10 meters
+    );
+
     final authService = Provider.of<AuthService>(context, listen: false);
     final tripService = TripService(authService.token!);
     await tripService.flushPendingEvents();

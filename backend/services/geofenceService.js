@@ -25,8 +25,8 @@ async function notifyAutoStatusChange(trip, status, notifyAdmin = false) {
 }
 
 export function startGeofenceMonitor(io) {
-  const minHits = 3;
-  const minSeconds = 15;
+  const minHits = 2; // Reduced from 3
+  const minSeconds = 10; // Reduced from 15
   const inRadiusState = new Map();
 
   // 1. Monitor Return Home (Phase: RETURNING_HOME -> FINALIZED)
@@ -49,10 +49,7 @@ export function startGeofenceMonitor(io) {
           Number(targetLat),
           Number(targetLng)
         );
-        const radiusMeters =
-          typeof trip.geofence_radius === "number" && !Number.isNaN(trip.geofence_radius)
-            ? trip.geofence_radius
-            : 100;
+        const radiusMeters = Number(trip.geofence_radius) || 100;
         const radiusKm = Math.max(radiusMeters, 10) / 1000;
         if (dist <= radiusKm) {
           const now = Date.now();
@@ -111,10 +108,7 @@ export function startGeofenceMonitor(io) {
           Number(trip.dest_lat),
           Number(trip.dest_lng)
         );
-        const radiusMeters =
-          typeof trip.geofence_radius === "number" && !Number.isNaN(trip.geofence_radius)
-            ? trip.geofence_radius
-            : 100;
+        const radiusMeters = Number(trip.geofence_radius) || 100;
         const radiusKm = Math.max(radiusMeters, 10) / 1000;
         if (dist <= radiusKm) {
           const now = Date.now();

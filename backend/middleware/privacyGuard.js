@@ -5,8 +5,8 @@ export async function privacyGuard(req, res, next) {
   if (!tripId) return res.status(400).json({ error: "Missing tripId" });
   const trip = await Trip.findByPk(tripId);
   if (!trip) return res.status(404).json({ error: "Assignment not found" });
-  if (trip.current_phase !== "ACTIVE") {
-    return res.status(403).json({ error: "GPS tracking blocked: assignment not ACTIVE" });
+  if (!["ACTIVE", "REACHED_DESTINATION", "RETURNING_HOME"].includes(trip.current_phase)) {
+    return res.status(403).json({ error: `GPS tracking blocked: assignment in phase ${trip.current_phase}` });
   }
   req.trip = trip;
   next();
