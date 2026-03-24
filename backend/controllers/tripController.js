@@ -80,6 +80,12 @@ export async function createTrip(req, res) {
   // Format: [Last 2 digits of Emp ID] + [Minutes] + [Day] + [Month] + [Year]
   task_title = `${empSuffix}${mm}${dd}${MM}${yy}`;
 
+  // If origin not provided, use home coordinates
+  if (!origin_lat || !origin_lng) {
+      origin_lat = home_lat;
+      origin_lng = home_lng;
+  }
+
   const trip = await Trip.create({
     user_id,
     assigned_by: req.user.id,

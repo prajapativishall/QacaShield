@@ -390,7 +390,7 @@ export function Reports() {
                   <td>{trip.Assigner ? trip.Assigner.name : "System"}</td>
                   <td onClick={(e) => e.stopPropagation()}>
                     {!['COMPLETED', 'FINALIZED', 'CANCELLED'].includes(
-                      (trip.displayStatus || '').toUpperCase()
+                      (trip.current_phase || '').toUpperCase()
                     ) ? (
                       <button
                         className="btn-secondary"
@@ -456,20 +456,14 @@ export function Reports() {
               </div>
 
               <div className="detail-section">
-                <h4>Route Details</h4>
-                <p><strong>Source (Planned):</strong> {selectedTrip.origin_lat}, {selectedTrip.origin_lng}</p>
+                <h4>Assignment Locations</h4>
+                <p><strong>Source (Planned):</strong> {selectedTrip.origin_lat || selectedTrip.home_lat || 'N/A'}, {selectedTrip.origin_lng || selectedTrip.home_lng || ''}</p>
                 
-                {selectedTrip.arrival_lat && (
-                  <p><strong>Arrival Destination:</strong> {selectedTrip.arrival_lat}, {selectedTrip.arrival_lng}</p>
-                )}
+                <p><strong>Arrival Destination:</strong> {selectedTrip.arrival_lat || 'Pending'}, {selectedTrip.arrival_lng || ''}</p>
                 
-                {selectedTrip.return_start_lat && (
-                  <p><strong>Return Start:</strong> {selectedTrip.return_start_lat}, {selectedTrip.return_start_lng}</p>
-                )}
+                <p><strong>Return Start:</strong> {selectedTrip.return_start_lat || 'Pending'}, {selectedTrip.return_start_lng || ''}</p>
 
-                {selectedTrip.completed_lat && (
-                  <p><strong>Return to Source:</strong> {selectedTrip.completed_lat}, {selectedTrip.completed_lng}</p>
-                )}
+                <p><strong>Return to Source:</strong> {selectedTrip.completed_lat || 'Pending'}, {selectedTrip.completed_lng || ''}</p>
 
                 {(selectedTrip.helmet_start_image_url || selectedTrip.helmet_return_image_url || selectedTrip.helmet_image_url) && (
                     <div className="helmet-check-section">
