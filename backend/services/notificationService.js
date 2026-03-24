@@ -100,17 +100,39 @@ export async function sendSMS(to, body) {
 }
 
 export async function sendWhatsApp(to, body) {
-    if (!twilioClient || !process.env.TWILIO_WHATSAPP_FROM) return;
+    if (!twilioClient) {
+        console.error("Twilio client not initialized. Check TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN.");
+        return;
+    }
+    
+    let from = process.env.TWILIO_WHATSAPP_FROM;
+    if (!from) {
+        console.error("TWILIO_WHATSAPP_FROM not set in .env");
+        return;
+    }
+
+    // Ensure 'from' starts with 'whatsapp:'
+    if (!from.startsWith('whatsapp:')) {
+        from = `whatsapp:${from}`;
+    }
+
+    // Ensure 'to' starts with 'whatsapp:'
+    const toFormatted = to.startsWith('whatsapp:') ? to : `whatsapp:${to}`;
+
     try {
+        console.log(`Attempting to send WhatsApp from ${from} to ${toFormatted}`);
         const message = await twilioClient.messages.create({
             body,
-            from: process.env.TWILIO_WHATSAPP_FROM,
-            to: to.startsWith('whatsapp:') ? to : `whatsapp:${to}`,
+            from: from,
+            to: toFormatted,
         });
-        console.log("WhatsApp sent:", message.sid);
+        console.log("WhatsApp sent successfully. SID:", message.sid);
         return message;
     } catch (error) {
-        console.error("Error sending WhatsApp:", error.message);
+        console.error("Error sending WhatsApp via Twilio:", error.message);
+        if (error.code === 21608) {
+            console.error("Twilio Sandbox Error: The 'to' number is not verified in your Twilio Sandbox.");
+        }
     }
 }
 
