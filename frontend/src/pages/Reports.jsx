@@ -64,9 +64,6 @@ export function Reports() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedTrip, setSelectedTrip] = useState(null);
-  const [trackingTripId, setTrackingTripId] = useState(null);
-  const [trackingInfo, setTrackingInfo] = useState(null);
-  const trackingRef = useRef(null);
   const [filters, setFilters] = useState({
     assignmentId: '',
     assignedTo: '',
@@ -287,103 +284,33 @@ export function Reports() {
     }
   };
 
-  const startTrackingFor = (id) => {
-    stopTracking();
-    if (!id) return;
-    setTrackingTripId(id);
-    const poll = async () => {
-      try {
-        const url = `${API_URL}/api/assignments/current-location?tripId=${encodeURIComponent(id)}`;
-        const res = await fetch(url, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (res.status === 401) {
-          logout();
-          return;
-        }
-        let data;
-        try {
-          data = await res.json();
-        } catch {
-          // Fallback when server lacks endpoint or returns HTML
-          if (res.status === 404) {
-            try {
-              const altUrl = `${API_URL}/api/assignments/assigned-history?limit=500`;
-              const altRes = await fetch(altUrl, { headers: { Authorization: `Bearer ${token}` } });
-              const list = await altRes.json();
-              const match = Array.isArray(list) ? list.find(t => String(t.id) === String(id)) : null;
-              if (match) {
-                setTrackingInfo({
-                  lat: match.current_lat ?? match.dest_lat ?? null,
-                  lng: match.current_lng ?? match.dest_lng ?? null,
-                  phase: match.current_phase,
-                  active: match.active,
-                  updatedAt: match.updated_at ?? match.created_at,
-                  fallback: true
-                });
-                return;
-              }
-              setTrackingInfo({ error: 'Not found (fallback failed)', status: 404, url: altUrl });
-              return;
-            } catch (e) {
-              setTrackingInfo({ error: 'Non-JSON response and fallback error', url, bodyPreview: 'fallback failed', status: res.status });
-              return;
-            }
-          } else {
-            const txt = await res.text().catch(() => '');
-            setTrackingInfo({
-              error: 'Non-JSON response',
-              status: res.status,
-              statusText: res.statusText,
-              url,
-              bodyPreview: (txt || '').slice(0, 120)
-            });
-            return;
-          }
-        }
-        if (!res.ok) {
-          if (res.status === 404) {
-            // Fallback path (duplicate of above but for JSON 404)
-            try {
-              const altUrl = `${API_URL}/api/assignments/assigned-history?limit=500`;
-              const altRes = await fetch(altUrl, { headers: { Authorization: `Bearer ${token}` } });
-              const list = await altRes.json();
-              const match = Array.isArray(list) ? list.find(t => String(t.id) === String(id)) : null;
-              if (match) {
-                setTrackingInfo({
-                  lat: match.current_lat ?? match.dest_lat ?? null,
-                  lng: match.current_lng ?? match.dest_lng ?? null,
-                  phase: match.current_phase,
-                  active: match.active,
-                  updatedAt: match.updated_at ?? match.created_at,
-                  fallback: true
-                });
-                return;
-              }
-            } catch {}
-          }
-          setTrackingInfo({ error: data.error || 'Unable to fetch location', status: res.status, statusText: res.statusText, url });
-          return;
-        }
-        setTrackingInfo({
-          lat: data.current_lat,
-          lng: data.current_lng,
-          phase: data.current_phase,
-          active: data.active,
-          updatedAt: data.updated_at
-        });
-        if (!data.active || ['COMPLETED','FINALIZED','CANCELLED'].includes(data.current_phase)) {
-          stopTracking();
-        }
-      } catch (e) {
-        setTrackingInfo({ error: e.message });
+  const startTrackingFor = async (id) => {
+    try {
+      const url = `${API_URL}/api/assignments/current-location?tripId=${encodeURIComponent(id)}`;
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      if (res.status === 401) {
+        logout();
+        return;
       }
-    };
-    poll();
-    trackingRef.current = setInterval(poll, 5000);
-  };
 
-  useEffect(() => () => stopTracking(), []);
+      if (!res.ok) {
+        alert("Unable to fetch real-time location. Rider might be offline.");
+        return;
+      }
+
+      const data = await res.json();
+      if (data.current_lat && data.current_lng) {
+        alert(`Real-time Location for Assignment #${id}:\n\nLatitude: ${data.current_lat}\nLongitude: ${data.current_lng}\n\nLast Updated: ${new Date(data.updated_at).toLocaleString()}`);
+      } else {
+        alert("No location data available yet for this assignment.");
+      }
+    } catch (e) {
+      alert("Error fetching location: " + e.message);
+    }
+  };
 
   if (loading) return <div className="reports-page">Loading...</div>;
   if (error) return <div className="reports-page">Error: {error}</div>;
@@ -462,27 +389,15 @@ export function Reports() {
                   <td>{trip.User ? trip.User.name : "Unknown"}</td>
                   <td>{trip.Assigner ? trip.Assigner.name : "System"}</td>
                   <td onClick={(e) => e.stopPropagation()}>
-                    {!['COMPLETED','FINALIZED','CANCELLED'].includes((trip.displayStatus || '').toUpperCase()) ? (
-                      trackingTripId === trip.id ? (
-                        <div style={{ fontSize: '0.85rem' }}>
-                          {trackingInfo?.error ? (
-                            <span style={{ color: '#b91c1c' }}>
-                              {trackingInfo.error}
-                              {trackingInfo.status ? ` (${trackingInfo.status} ${trackingInfo.statusText || ''})` : ''}
-                              {trackingInfo.url ? ` — ${trackingInfo.url}` : ''}
-                              {trackingInfo.bodyPreview ? ` — ${trackingInfo.bodyPreview}` : ''}
-                            </span>
-                          ) : (
-                            <>
-                              <div><strong>Tracking…</strong></div>
-                              <div><strong>Lat,Lon:</strong> {trackingInfo?.lat ?? '…'}, {trackingInfo?.lng ?? '…'}</div>
-                              <div><strong>Updated:</strong> {trackingInfo?.updatedAt ? new Date(trackingInfo.updatedAt).toLocaleString() : '…'}</div>
-                            </>
-                          )}
-                        </div>
-                      ) : (
-                        <button className="btn-secondary" onClick={() => startTrackingFor(trip.id)}>Track</button>
-                      )
+                    {!['COMPLETED', 'FINALIZED', 'CANCELLED'].includes(
+                      (trip.displayStatus || '').toUpperCase()
+                    ) ? (
+                      <button
+                        className="btn-secondary"
+                        onClick={() => startTrackingFor(trip.id)}
+                      >
+                        Track
+                      </button>
                     ) : (
                       <span style={{ color: '#9CA3AF' }}>N/A</span>
                     )}
@@ -542,23 +457,18 @@ export function Reports() {
 
               <div className="detail-section">
                 <h4>Route Details</h4>
-                <p><strong>Origin (Planned):</strong> {selectedTrip.origin_lat}, {selectedTrip.origin_lng}</p>
-                <p><strong>Destination (Planned):</strong> {selectedTrip.dest_lat}, {selectedTrip.dest_lng}</p>
+                <p><strong>Source (Planned):</strong> {selectedTrip.origin_lat}, {selectedTrip.origin_lng}</p>
                 
-                {selectedTrip.actual_start_lat && (
-                  <p><strong>Actual Start:</strong> {selectedTrip.actual_start_lat}, {selectedTrip.actual_start_lng}</p>
-                )}
-
                 {selectedTrip.arrival_lat && (
-                  <p><strong>Actual Arrival:</strong> {selectedTrip.arrival_lat}, {selectedTrip.arrival_lng}</p>
+                  <p><strong>Arrival Destination:</strong> {selectedTrip.arrival_lat}, {selectedTrip.arrival_lng}</p>
                 )}
                 
                 {selectedTrip.return_start_lat && (
-                  <p><strong>Return Start:</strong> {selectedTrip.return_start_lat}, {selectedTrip.return_start_lng} <span style={{fontSize: '0.8rem', color: '#666'}}>(at {new Date(selectedTrip.return_time).toLocaleString()})</span></p>
+                  <p><strong>Return Start:</strong> {selectedTrip.return_start_lat}, {selectedTrip.return_start_lng}</p>
                 )}
 
                 {selectedTrip.completed_lat && (
-                  <p><strong>Actual Completion:</strong> {selectedTrip.completed_lat}, {selectedTrip.completed_lng}</p>
+                  <p><strong>Return to Source:</strong> {selectedTrip.completed_lat}, {selectedTrip.completed_lng}</p>
                 )}
 
                 {(selectedTrip.helmet_start_image_url || selectedTrip.helmet_return_image_url || selectedTrip.helmet_image_url) && (

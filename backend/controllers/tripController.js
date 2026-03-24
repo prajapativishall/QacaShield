@@ -6,16 +6,14 @@ import { fetchBestRoutePolyline, getRouteFromCoords, geocodeAddress, geocodeSugg
 import { broadcastToAdmins, sendPushNotification } from "../services/notificationService.js";
 
 // Helper for status notifications
-async function notifyStatusChange(trip, status, notifyAdmin = false) {
+async function notifyStatusChange(trip, status) {
   try {
     const user = await User.findByPk(trip.user_id);
     const title = `Assignment Update: ${status}`;
     const message = `Assignment: ${trip.task_title || `#${trip.id}`}\nRider: ${user?.name || "Unknown"}\nNew Status: ${status}`;
     
-    // Notify Admin only if explicitly requested (Emergency or Finalized)
-    if (notifyAdmin) {
-      await broadcastToAdmins(title, message);
-    }
+    // Notify Admin always as requested
+    await broadcastToAdmins(title, message);
     
     // Notify User via Push always
     if (user?.fcm_token) {
@@ -385,7 +383,7 @@ export async function completeTrip(req, res) {
 
     await trip.save();
 
-    notifyStatusChange(trip, "Assignment Completed", true);
+    notifyStatusChange(trip, "Assignment Completed");
 
     try {
       const assignmentId = trip.task_title || `#${trip.id}`;
@@ -462,7 +460,7 @@ export async function earlyExitTrip(req, res) {
     }
     await trip.save();
 
-    notifyStatusChange(trip, `Assignment Early Exit: ${reason}`, true);
+    notifyStatusChange(trip, `Assignment Early Exit: ${reason}`);
 
     try {
       const assignmentId = trip.task_title || `#${trip.id}`;
@@ -501,7 +499,7 @@ export async function cancelTrip(req, res) {
     trip.actual_end_time = new Date();
     await trip.save();
 
-    notifyStatusChange(trip, "Assignment Cancelled", true);
+    notifyStatusChange(trip, "Assignment Cancelled");
 
     try {
       const assignmentId = trip.task_title || `#${trip.id}`;
