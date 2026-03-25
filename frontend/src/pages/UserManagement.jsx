@@ -334,12 +334,8 @@ export function UserManagement() {
               {users.filter(u => !empIdFilter || (u.employee_id && u.employee_id.includes(empIdFilter))).map((user) => (
                 <tr key={user.id} className={!user.is_active ? "row-warning" : ""}>
                   <td className="user-name-cell">
-                      <div className="user-avatar">
-                          {user.name.charAt(0).toUpperCase()}
-                      </div>
                       <div>
                           <div style={{ fontWeight: 600 }}>{user.name}</div>
-                          <div style={{ fontSize: '0.8rem', color: '#6B7280' }}>ID: {user.id}</div>
                       </div>
                   </td>
                   <td><span className={`role-badge role-${user.role}`}>{user.role}</span></td>
@@ -348,9 +344,14 @@ export function UserManagement() {
                   <td>{user.phone_number || "N/A"}</td>
                   <td>{user.emergency_contact || "N/A"}</td>
                   <td className="actions-cell">
-                      <button onClick={() => toggleStatus(user)} className={`status-toggle-btn ${user.is_active ? 'active' : 'inactive'}`} title={user.is_active ? "Deactivate User" : "Activate User"}>
-                          <div className="toggle-slider"></div>
-                      </button>
+                      <div className="toggle-wrap">
+                        <button onClick={() => toggleStatus(user)} className={`status-toggle-btn ${user.is_active ? 'active' : 'inactive'}`} title={user.is_active ? "Deactivate User" : "Activate User"}>
+                            <div className="toggle-slider"></div>
+                        </button>
+                        <span className={`toggle-text ${user.is_active ? 'active' : 'inactive'}`}>
+                          {user.is_active ? "Active" : "Inactive"}
+                        </span>
+                      </div>
                       <button onClick={() => handleEdit(user)} className="btn-icon" title="Edit User">
                           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
                       </button>
