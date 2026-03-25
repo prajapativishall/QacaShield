@@ -720,7 +720,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       trip['actual_end_time'] != null
                                       ? DateTime.tryParse(
                                           trip['actual_end_time'],
-                                        )
+                                        )?.toLocal()
                                       : null;
                                   final String whenText = endTime != null
                                       ? DateFormat(
