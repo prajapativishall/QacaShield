@@ -1,7 +1,7 @@
 import { Trip } from "../models/Trip.js";
 import { Log } from "../models/Log.js";
 import { User } from "../models/User.js";
-import { broadcastToAdmins, sendPushNotification } from "./notificationService.js";
+import { broadcastToAdmins, sendPushNotification, notifyUserEmailSMS } from "./notificationService.js";
 
 // Helper for automated status notifications
 async function notifyAutoStatusChange(trip, status) {
@@ -16,6 +16,9 @@ async function notifyAutoStatusChange(trip, status) {
     // Notify User via Push always
     if (user?.fcm_token) {
       sendPushNotification(user.fcm_token, title, message, { tripId: trip.id });
+    }
+    if (user) {
+      await notifyUserEmailSMS(user, title, message);
     }
   } catch (err) {
     console.error("Failed to send auto status notification:", err.message);

@@ -3,7 +3,7 @@ import { User } from "../models/User.js";
 import { Log } from "../models/Log.js";
 import { Op } from "sequelize";
 import { fetchBestRoutePolyline, getRouteFromCoords, geocodeAddress, geocodeSuggestions } from "../services/routingService.js";
-import { broadcastToAdmins, sendPushNotification } from "../services/notificationService.js";
+import { broadcastToAdmins, sendPushNotification, notifyUserEmailSMS } from "../services/notificationService.js";
 
 // Helper for status notifications
 async function notifyStatusChange(trip, status) {
@@ -18,6 +18,10 @@ async function notifyStatusChange(trip, status) {
     // Notify User via Push always
     if (user?.fcm_token) {
       await sendPushNotification(user.fcm_token, title, message, { tripId: trip.id });
+    }
+    // Notify User via Email & SMS
+    if (user) {
+      await notifyUserEmailSMS(user, title, message);
     }
   } catch (err) {
     console.error("Failed to send status notification:", err.message);
@@ -116,6 +120,13 @@ export async function createTrip(req, res) {
         "New Assignment",
         `You have a new assignment: ${task_title}`,
         { tripId: trip.id }
+      );
+    }
+    if (user) {
+      await notifyUserEmailSMS(
+        user,
+        "New Assignment",
+        `You have a new assignment: ${task_title}`
       );
     }
   } catch (notifError) {

@@ -136,6 +136,71 @@ export async function sendWhatsApp(to, body) {
     }
 }
 
+function buildUserTemplates(title, message, user) {
+    const appName = process.env.APP_NAME || "QacaShield";
+    const brand = process.env.BRAND_NAME || appName;
+    const brandColor = process.env.BRAND_COLOR || "#FF5252";
+    const dashboardUrl = process.env.APP_DASHBOARD_URL || "";
+    const subject = `${brand}: ${title}`;
+    const text = `${title}\n\n${message}\n\n${dashboardUrl ? `Open: ${dashboardUrl}` : ""}\n— ${brand}`.trim();
+    const safeName = user?.name || "Rider";
+    const html = `
+      <div style="font-family:Arial,Helvetica,sans-serif;background:#f6f7f9;padding:24px">
+        <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:640px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden">
+          <tr>
+            <td style="background:${brandColor};color:#ffffff;padding:16px 20px;font-size:18px;font-weight:600">
+              ${brand}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:24px 20px 8px 20px;color:#111827;font-size:18px;font-weight:700;line-height:1.3">
+              ${title}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:0 20px 8px 20px;color:#374151;font-size:14px">
+              Hello ${safeName},
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:0 20px 16px 20px;color:#111827;font-size:15px;line-height:1.6;white-space:pre-line">
+              ${message}
+            </td>
+          </tr>
+          ${dashboardUrl ? `
+          <tr>
+            <td style="padding:0 20px 24px 20px">
+              <a href="${dashboardUrl}" style="display:inline-block;background:${brandColor};color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px;font-weight:600">
+                Open Dashboard
+              </a>
+            </td>
+          </tr>` : ``}
+          <tr>
+            <td style="padding:16px 20px;color:#6b7280;font-size:12px;border-top:1px solid #e5e7eb">
+              © ${new Date().getFullYear()} ${brand}
+            </td>
+          </tr>
+        </table>
+      </div>
+    `.trim();
+    let sms = `[${brand}] ${title}: ${message}`.replace(/\s+/g, " ").trim();
+    if (sms.length > 320) sms = sms.slice(0, 317) + "...";
+    return { subject, text, html, sms };
+}
+
+export async function notifyUserEmailSMS(user, title, message) {
+    if (!user) return;
+    const tasks = [];
+    const t = buildUserTemplates(title, message, user);
+    if (user.email) {
+        tasks.push(sendEmail(user.email, t.subject, t.text, t.html));
+    }
+    if (user.phone_number) {
+        tasks.push(sendSMS(user.phone_number, t.sms));
+    }
+    await Promise.allSettled(tasks);
+}
+
 /**
  * Broadcast notification to all configured admin channels
  */
@@ -166,4 +231,3 @@ export async function broadcastToAdmins(title, message) {
 
     await Promise.allSettled(tasks);
 }
-
