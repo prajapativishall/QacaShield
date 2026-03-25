@@ -143,6 +143,7 @@ function buildUserTemplates(title, message, user) {
     const dashboardUrl = process.env.APP_DASHBOARD_URL || "";
     const subject = `${brand}: ${title}`;
     const text = `${title}\n\n${message}\n\n${dashboardUrl ? `Open: ${dashboardUrl}` : ""}\n— ${brand}`.trim();
+    const whatsapp = `${brand}: ${title}\n\n${message}${dashboardUrl ? `\n\nOpen: ${dashboardUrl}` : ""}`.trim();
     const safeName = user?.name || "Rider";
     const html = `
       <div style="font-family:Arial,Helvetica,sans-serif;background:#f6f7f9;padding:24px">
@@ -185,7 +186,7 @@ function buildUserTemplates(title, message, user) {
     `.trim();
     let sms = `[${brand}] ${title}: ${message}`.replace(/\s+/g, " ").trim();
     if (sms.length > 320) sms = sms.slice(0, 317) + "...";
-    return { subject, text, html, sms };
+    return { subject, text, html, sms, whatsapp };
 }
 
 export async function notifyUserEmailSMS(user, title, message) {
@@ -197,6 +198,9 @@ export async function notifyUserEmailSMS(user, title, message) {
     }
     if (user.phone_number) {
         tasks.push(sendSMS(user.phone_number, t.sms));
+        if (process.env.TWILIO_WHATSAPP_FROM) {
+            tasks.push(sendWhatsApp(user.phone_number, t.whatsapp));
+        }
     }
     await Promise.allSettled(tasks);
 }
