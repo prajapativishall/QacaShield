@@ -58,7 +58,6 @@ export function MiniTrackerMap({ lat, lng }) {
     if (animRef.current) cancelAnimationFrame(animRef.current);
     animRef.current = requestAnimationFrame(tick);
     return () => animRef.current && cancelAnimationFrame(animRef.current);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lat, lng]);
 
   return (
@@ -90,4 +89,3 @@ export function MiniTrackerMap({ lat, lng }) {
     </div>
   );
 }
-

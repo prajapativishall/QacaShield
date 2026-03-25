@@ -74,6 +74,7 @@
 
 .user-table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: separate;
   border-spacing: 0;
   background: white;
@@ -83,9 +84,12 @@
 }
 
 .user-table th, .user-table td {
-  padding: 16px 20px;
+  padding: 14px 16px;
   text-align: left;
   border-bottom: 1px solid #f3f4f6;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .user-table th {
@@ -96,6 +100,14 @@
   font-size: 0.75rem;
   letter-spacing: 0.05em;
 }
+
+.user-table th:nth-child(1), .user-table td:nth-child(1) { width: 240px; }
+.user-table th:nth-child(2), .user-table td:nth-child(2) { width: 120px; }
+.user-table th:nth-child(3), .user-table td:nth-child(3) { width: 280px; }
+.user-table th:nth-child(4), .user-table td:nth-child(4) { width: 120px; }
+.user-table th:nth-child(5), .user-table td:nth-child(5) { width: 170px; }
+.user-table th:nth-child(6), .user-table td:nth-child(6) { width: 170px; }
+.user-table th:nth-child(7), .user-table td:nth-child(7) { width: 170px; }
 
 .user-table tr:last-child td {
     border-bottom: none;
@@ -124,34 +136,98 @@
 .role-MANAGER { background-color: #DBEAFE; color: #1E40AF; }
 .role-USER { background-color: #D1FAE5; color: #065F46; }
 
+.user-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  white-space: normal;
+}
+
+.user-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 9999px;
+  background: #E0F2FE;
+  color: #0284C7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  flex: 0 0 auto;
+}
+
+.actions-cell {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  overflow: visible;
+}
+
 .status-toggle-btn {
-    padding: 6px 12px;
-    border-radius: 20px;
-    border: none;
-    font-size: 0.85rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
+  width: 42px;
+  height: 24px;
+  border-radius: 9999px;
+  border: 1px solid #E5E7EB;
+  padding: 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  background-color: #FEE2E2;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
 }
 
 .status-toggle-btn.active {
-    background-color: #D1FAE5;
-    color: #065F46;
+  background-color: #D1FAE5;
+  border-color: #A7F3D0;
 }
 
-.status-toggle-btn.deactive {
-    background-color: #FEE2E2;
-    color: #991B1B;
+.status-toggle-btn.inactive {
+  background-color: #FEE2E2;
+  border-color: #FECACA;
 }
 
-.row-deactive {
-    opacity: 0.6;
-    background-color: #F9FAFB;
+.toggle-slider {
+  width: 18px;
+  height: 18px;
+  border-radius: 9999px;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.12);
+  transform: translateX(3px);
+  transition: transform 0.15s ease;
 }
 
-.action-buttons {
-  display: flex;
-  gap: 8px;
+.status-toggle-btn.active .toggle-slider {
+  transform: translateX(21px);
+}
+
+.btn-icon {
+  width: 36px;
+  height: 36px;
+  border: 1px solid #E5E7EB;
+  background: #ffffff;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #111827;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.btn-icon:hover {
+  background: #F9FAFB;
+  border-color: #D1D5DB;
+}
+
+.btn-icon.delete {
+  color: #B91C1C;
+  border-color: #FECACA;
+}
+
+.btn-icon.delete:hover {
+  background: #FEF2F2;
+  border-color: #FCA5A5;
 }
 
 .btn-edit, .btn-delete, .btn-secondary {

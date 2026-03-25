@@ -333,7 +333,7 @@ export function UserManagement() {
             <tbody>
               {users.filter(u => !empIdFilter || (u.employee_id && u.employee_id.includes(empIdFilter))).map((user) => (
                 <tr key={user.id} className={!user.is_active ? "row-warning" : ""}>
-                  <td style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <td className="user-name-cell">
                       <div className="user-avatar">
                           {user.name.charAt(0).toUpperCase()}
                       </div>
