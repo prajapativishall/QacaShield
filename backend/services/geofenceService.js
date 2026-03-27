@@ -5,6 +5,7 @@ import { broadcastToAdmins, sendPushNotification, notifyUserEmailSMS } from "./n
 
 const stuckState = new Map();
 const pendingStuckAck = new Map();
+const STUCK_RADIUS_METERS = 25;
 
 export async function acknowledgeStuckAlert(tripId, userId) {
   const key = String(tripId);
@@ -205,8 +206,7 @@ export function startGeofenceMonitor(io) {
         const tripId = String(trip.id);
         const lat = Number(trip.current_lat);
         const lng = Number(trip.current_lng);
-        const radiusMeters = Number(trip.geofence_radius) || 100;
-        const radiusKm = Math.max(radiusMeters, 10) / 1000;
+        const radiusKm = STUCK_RADIUS_METERS / 1000;
 
         const state = stuckState.get(tripId) || {
           anchorLat: lat,
