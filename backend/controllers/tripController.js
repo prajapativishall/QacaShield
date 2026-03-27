@@ -4,6 +4,7 @@ import { Log } from "../models/Log.js";
 import { Op } from "sequelize";
 import { fetchBestRoutePolyline, getRouteFromCoords, geocodeAddress, geocodeSuggestions } from "../services/routingService.js";
 import { broadcastToAdmins, sendPushNotification, notifyUserEmailSMS } from "../services/notificationService.js";
+import { acknowledgeStuckAlert } from "../services/geofenceService.js";
 
 // Helper for status notifications
 async function notifyStatusChange(trip, status) {
@@ -707,6 +708,21 @@ export async function updateGpsPing(req, res) {
   trip.current_lng = lng;
   await trip.save();
   res.json({ ok: true });
+}
+
+export async function acknowledgeStuck(req, res) {
+  try {
+    const { tripId } = req.body;
+    if (!tripId) return res.status(400).json({ error: "Missing tripId" });
+    const trip = await Trip.findByPk(tripId);
+    if (!trip) return res.status(404).json({ error: "Assignment not found" });
+    if (trip.user_id !== req.user.id) return res.status(403).json({ error: "Not allowed" });
+    const acknowledged = await acknowledgeStuckAlert(tripId, req.user.id);
+    res.json({ ok: true, acknowledged });
+  } catch (error) {
+    console.error("acknowledgeStuck error:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
 }
 
 export async function getAssignedTripsHistory(req, res) {

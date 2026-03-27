@@ -20,6 +20,7 @@ import {
   getCurrentLocation,
   earlyExitTrip,
   cancelTrip,
+  acknowledgeStuck,
   geocode,
   geocodeSuggestionsHandler
 } from "../controllers/tripController.js";
@@ -48,6 +49,7 @@ router.get("/geocode", geocode);
 router.get("/geocode-suggestions", geocodeSuggestionsHandler);
 router.get("/offline-sync", offlineSync);
 router.post("/gps-ping", privacyGuard, updateGpsPing);
+router.post("/stuck-ack", requireRole([]), acknowledgeStuck);
 router.post("/alert", createAlert);
 router.get("/alerts", requireRole(["MANAGER", "ADMIN"]), getAlerts); // New endpoint for dashboard
 router.get(

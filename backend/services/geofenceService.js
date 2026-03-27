@@ -3,6 +3,38 @@ import { Log } from "../models/Log.js";
 import { User } from "../models/User.js";
 import { broadcastToAdmins, sendPushNotification, notifyUserEmailSMS } from "./notificationService.js";
 
+const stuckState = new Map();
+const pendingStuckAck = new Map();
+
+export async function acknowledgeStuckAlert(tripId, userId) {
+  const key = String(tripId);
+  const pending = pendingStuckAck.get(key);
+  if (!pending) return false;
+  if (pending.userId !== userId) return false;
+  if (pending.timeoutId) clearTimeout(pending.timeoutId);
+  pendingStuckAck.delete(key);
+  try {
+    const trip = await Trip.findByPk(tripId);
+    if (trip?.current_phase !== "ACTIVE" || !trip?.active) {
+      stuckState.delete(key);
+      return true;
+    }
+    if (trip.current_lat != null && trip.current_lng != null) {
+      stuckState.set(key, {
+        anchorLat: Number(trip.current_lat),
+        anchorLng: Number(trip.current_lng),
+        sinceMs: Date.now(),
+        notified: false
+      });
+    } else {
+      stuckState.delete(key);
+    }
+  } catch (_) {
+    stuckState.delete(key);
+  }
+  return true;
+}
+
 // Helper for automated status notifications
 async function notifyAutoStatusChange(trip, status) {
   try {
@@ -152,6 +184,103 @@ export function startGeofenceMonitor(io) {
       console.error("Dest geofence monitor error:", err.message);
     }
   }, 5000);
+
+  setInterval(async () => {
+    try {
+      const trips = await Trip.findAll({
+        where: { current_phase: "ACTIVE", active: true }
+      });
+      const activeIds = new Set(trips.map((t) => String(t.id)));
+      for (const key of stuckState.keys()) {
+        if (!activeIds.has(key)) {
+          stuckState.delete(key);
+          const pending = pendingStuckAck.get(key);
+          if (pending?.timeoutId) clearTimeout(pending.timeoutId);
+          pendingStuckAck.delete(key);
+        }
+      }
+
+      for (const trip of trips) {
+        if (trip.current_lat == null || trip.current_lng == null) continue;
+        const tripId = String(trip.id);
+        const lat = Number(trip.current_lat);
+        const lng = Number(trip.current_lng);
+        const radiusMeters = Number(trip.geofence_radius) || 100;
+        const radiusKm = Math.max(radiusMeters, 10) / 1000;
+
+        const state = stuckState.get(tripId) || {
+          anchorLat: lat,
+          anchorLng: lng,
+          sinceMs: Date.now(),
+          notified: false
+        };
+
+        const distKm = haversine(lat, lng, Number(state.anchorLat), Number(state.anchorLng));
+
+        if (distKm > radiusKm) {
+          const pending = pendingStuckAck.get(tripId);
+          if (pending?.timeoutId) clearTimeout(pending.timeoutId);
+          pendingStuckAck.delete(tripId);
+          stuckState.set(tripId, { anchorLat: lat, anchorLng: lng, sinceMs: Date.now(), notified: false });
+          continue;
+        }
+
+        if (!state.notified && Date.now() - Number(state.sinceMs) >= 60 * 60 * 1000) {
+          const user = await User.findByPk(trip.user_id);
+          const assignmentId = trip.task_title || `#${trip.id}`;
+          const title = "Location Alert";
+          const message = `You have spent more than 1 hour at the same location.\nAssignment: ${assignmentId}\nPlease tap OK to confirm.`;
+
+          if (user?.fcm_token) {
+            sendPushNotification(user.fcm_token, title, message, { tripId: trip.id, type: "STUCK_1H" });
+          }
+          io.to(`trip:${trip.id}`).emit("stuckAlert", { tripId: trip.id, title, message });
+
+          const timeoutId = setTimeout(async () => {
+            const pending = pendingStuckAck.get(tripId);
+            if (!pending) return;
+            pendingStuckAck.delete(tripId);
+
+            try {
+              const freshTrip = await Trip.findByPk(trip.id);
+              if (!freshTrip || freshTrip.current_phase !== "ACTIVE" || !freshTrip.active) {
+                stuckState.delete(tripId);
+                return;
+              }
+              const freshUser = await User.findByPk(freshTrip.user_id);
+              const riderName = freshUser?.name || "Unknown Rider";
+              const taskTitle = freshTrip.task_title || `#${freshTrip.id}`;
+              const lat2 = freshTrip.current_lat ?? lat;
+              const lng2 = freshTrip.current_lng ?? lng;
+
+              const logMessage = `Stuck >1h (no rider ack). Rider: ${riderName}. Assignment: ${taskTitle}. Location: ${lat2}, ${lng2}`;
+              await Log.create({
+                assignment_id: freshTrip.id,
+                type: "ALERT",
+                message: logMessage.slice(0, 500),
+                lat: lat2,
+                lng: lng2
+              });
+
+              const adminTitle = "⏱️ STUCK ALERT: No Acknowledgement";
+              const adminMessage = `Rider: ${riderName}\nAssignment: ${taskTitle}\nLocation: ${lat2}, ${lng2}\nRider did not acknowledge the 1-hour location alert.`;
+              await broadcastToAdmins(adminTitle, adminMessage);
+              stuckState.set(tripId, { anchorLat: Number(lat2), anchorLng: Number(lng2), sinceMs: Date.now(), notified: false });
+            } catch (e) {
+              console.error("Failed to escalate stuck alert:", e.message);
+            }
+          }, 10000);
+
+          pendingStuckAck.set(tripId, { userId: trip.user_id, timeoutId });
+          stuckState.set(tripId, { ...state, notified: true });
+        } else {
+          stuckState.set(tripId, state);
+        }
+      }
+    } catch (err) {
+      console.error("Stuck monitor error:", err.message);
+    }
+  }, 10000);
 }
 
 function haversine(lat1, lon1, lat2, lon2) {

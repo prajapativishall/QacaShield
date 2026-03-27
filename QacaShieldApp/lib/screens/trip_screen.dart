@@ -8,6 +8,7 @@ import 'package:location/location.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_map_tile_caching/flutter_map_tile_caching.dart';
+import 'package:socket_io_client/socket_io_client.dart' as IO;
 import '../services/auth_service.dart';
 import '../services/trip_service.dart';
 import '../config/constants.dart';
@@ -45,6 +46,8 @@ class _TripScreenState extends State<TripScreen>
   bool _arrivalInProgress = false;
   TileProvider? _tileProvider;
   DateTime? _tripStartTime;
+  IO.Socket? _socket;
+  bool _stuckDialogOpen = false;
 
   void _animatedMapMove(
     LatLng destLocation,
@@ -99,6 +102,9 @@ class _TripScreenState extends State<TripScreen>
   void dispose() {
     _animationController?.dispose();
     _locationSubscription?.cancel();
+    _socket?.off('stuckAlert');
+    _socket?.disconnect();
+    _socket?.close();
     super.dispose();
   }
 
@@ -107,10 +113,74 @@ class _TripScreenState extends State<TripScreen>
     super.initState();
     _tripStartTime = DateTime.now();
     _currentTrip = widget.trip;
+    _initSocket();
     _loadCachedRoute();
     _refreshTripData();
     _setupMap();
     _startTracking();
+  }
+
+  void _initSocket() {
+    try {
+      _socket = IO.io(AppConstants.staticBaseUrl, {
+        'transports': ['websocket'],
+        'autoConnect': false,
+      });
+      _socket!.connect();
+      _socket!.onConnect((_) {
+        _socket!.emit('joinTripRoom', widget.trip['id']);
+      });
+      _socket!.on('stuckAlert', (data) {
+        _handleStuckAlert(data);
+      });
+    } catch (e) {
+      print("Socket init failed: $e");
+    }
+  }
+
+  void _handleStuckAlert(dynamic data) {
+    if (!mounted) return;
+    if (_stuckDialogOpen) return;
+    final int tripId = (data is Map && data['tripId'] != null)
+        ? int.tryParse(data['tripId'].toString()) ?? widget.trip['id']
+        : widget.trip['id'];
+    final String title = (data is Map && data['title'] != null)
+        ? data['title'].toString()
+        : 'Location Alert';
+    final String message = (data is Map && data['message'] != null)
+        ? data['message'].toString()
+        : 'You have spent more than 1 hour at the same location.';
+
+    _stuckDialogOpen = true;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              try {
+                final authService = Provider.of<AuthService>(
+                  context,
+                  listen: false,
+                );
+                await TripService(
+                  authService.token!,
+                ).acknowledgeStuckAlert(tripId);
+              } catch (e) {
+                print("Acknowledge failed: $e");
+              }
+              if (mounted) Navigator.pop(context);
+            },
+            child: Text("OK"),
+          ),
+        ],
+      ),
+    ).then((_) {
+      _stuckDialogOpen = false;
+    });
   }
 
   Future<void> _refreshTripData() async {

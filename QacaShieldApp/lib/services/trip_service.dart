@@ -196,6 +196,21 @@ class TripService {
     }
   }
 
+  Future<void> acknowledgeStuckAlert(int tripId) async {
+    final url = Uri.parse('${AppConstants.baseUrl}/assignments/stuck-ack');
+    final response = await http.post(
+      url,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+      body: json.encode({'tripId': tripId}),
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Acknowledge failed: ${response.statusCode}');
+    }
+  }
+
   Future<Map<String, dynamic>> uploadSafetyCheck(
     int tripId,
     String filePath,

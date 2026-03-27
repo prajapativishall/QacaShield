@@ -32,39 +32,10 @@ export function AssignmentSidebar({ isOpen, onClose }) {
   };
 
   const getStatus = (user) => {
-    const lastTrip = user.Trips && user.Trips[0];
-    
-    // Check if busy (Active trip)
-    if (lastTrip && (lastTrip.active || lastTrip.current_phase === 'ACTIVE' || lastTrip.current_phase === 'PLANNED')) {
-        return { status: "BUSY", label: "Busy (On Trip)", color: "#EF4444" };
-    }
-
-    // Check Cooling Period (8 hours)
-    if (lastTrip && lastTrip.actual_end_time && lastTrip.current_phase !== 'CANCELLED') {
-        const endTime = new Date(lastTrip.actual_end_time);
-        const now = new Date();
-        const diffHours = (now - endTime) / (1000 * 60 * 60);
-        
-        if (diffHours < 8) {
-             const remaining = Math.ceil(8 - diffHours);
-             return { status: "COOLING", label: `Cooling (${remaining}h left)`, color: "#F59E0B" };
-        }
-    }
-    
     return { status: "AVAILABLE", label: "Available", color: "#10B981" };
   };
 
   const handleUserSelect = (user) => {
-     const status = getStatus(user);
-     if (status.status === 'BUSY') {
-         alert("This user is currently on a trip and cannot be assigned a new task.");
-         return;
-     }
-     
-     if (status.status === 'COOLING') {
-         if (!window.confirm(`User is in cooling period (${status.label}). Assign anyway?`)) return;
-     }
-     
      setSelectedUser(user);
      setView("form");
   };
