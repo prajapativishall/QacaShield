@@ -318,6 +318,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                               // If Accepted but not verified/started -> Safety Check
                               if (phase == 'ACCEPTED') {
+                                final bool hasRunning = trips.any((t) {
+                                  if (t == null) return false;
+                                  if (t['id'] == trip['id']) return false;
+                                  final String p = (t['current_phase'] ?? '')
+                                      .toString();
+                                  final bool isActive = t['active'] == true;
+                                  return isActive ||
+                                      p == 'ACTIVE' ||
+                                      p == 'REACHED_DESTINATION' ||
+                                      p == 'RETURNING_HOME';
+                                });
+                                if (hasRunning) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Finish the current assignment before starting another.',
+                                      ),
+                                    ),
+                                  );
+                                  return;
+                                }
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
