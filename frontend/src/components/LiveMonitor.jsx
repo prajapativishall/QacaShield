@@ -23,6 +23,13 @@ export function LiveMonitor() {
   const [activeTrips, setActiveTrips] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const formatTime = (ts) => {
+    if (!ts) return "N/A";
+    const d = new Date(ts);
+    if (Number.isNaN(d.getTime())) return "N/A";
+    return d.toLocaleTimeString();
+  };
+
   const resolveHelmetUrl = (raw) => {
     if (!raw) return null;
     if (raw.startsWith("http")) return raw;
@@ -166,7 +173,7 @@ export function LiveMonitor() {
                               </>
                             )}
                             <small style={{ display: "block", marginTop: "4px", color: "#666" }}>
-                                Verified at: {new Date(trip.updated_at).toLocaleTimeString()}
+                                Verified at: {formatTime(trip.updatedAt || trip.updated_at)}
                             </small>
                          </div>
                       ) : (

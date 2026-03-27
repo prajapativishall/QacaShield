@@ -64,6 +64,7 @@ export function Reports() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedTrip, setSelectedTrip] = useState(null);
+  const [trackingTrip, setTrackingTrip] = useState(null);
   const [filters, setFilters] = useState({
     assignmentId: '',
     assignedTo: '',
@@ -127,6 +128,10 @@ export function Reports() {
 
   const closeModal = () => {
     setSelectedTrip(null);
+  };
+
+  const closeTrackingModal = () => {
+    setTrackingTrip(null);
   };
 
   const handleCancelAssignment = async () => {
@@ -302,8 +307,18 @@ export function Reports() {
       }
 
       const data = await res.json();
-      if (data.current_lat && data.current_lng) {
-        alert(`Real-time Location for Assignment #${id}:\n\nLatitude: ${data.current_lat}\nLongitude: ${data.current_lng}\n\nLast Updated: ${new Date(data.updated_at).toLocaleString()}`);
+      if (data.current_lat != null && data.current_lng != null) {
+        const updated = data.updated_at || data.updatedAt || null;
+        const d = updated ? new Date(updated) : null;
+        const lastUpdated = d && !Number.isNaN(d.getTime()) ? d.toLocaleString() : "N/A";
+        setTrackingTrip({
+          tripId: id,
+          current_lat: data.current_lat,
+          current_lng: data.current_lng,
+          lastUpdated,
+          current_phase: data.current_phase,
+          active: data.active
+        });
       } else {
         alert("No location data available yet for this assignment.");
       }
@@ -516,6 +531,46 @@ export function Reports() {
                 </button>
               )}
               <button className="btn-secondary" onClick={closeModal}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {trackingTrip && (
+        <div className="modal-overlay" onClick={closeTrackingModal}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Real-time Location: Assignment #{trackingTrip.tripId}</h3>
+              <button className="close-btn" onClick={closeTrackingModal}>
+                &times;
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="detail-section">
+                <h4>Current Position</h4>
+                <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", alignItems: "center" }}>
+                  <div>
+                    <strong>Lat:</strong> {trackingTrip.current_lat}
+                  </div>
+                  <div>
+                    <strong>Lng:</strong> {trackingTrip.current_lng}
+                  </div>
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                      `${trackingTrip.current_lat},${trackingTrip.current_lng}`
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn-secondary"
+                    style={{ textDecoration: "none", display: "inline-flex", alignItems: "center" }}
+                  >
+                    Open in Maps
+                  </a>
+                </div>
+                <div style={{ marginTop: "10px", color: "#6B7280" }}>
+                  <strong>Last Updated:</strong> {trackingTrip.lastUpdated}
+                </div>
+              </div>
             </div>
           </div>
         </div>

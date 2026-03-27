@@ -298,7 +298,8 @@ export async function getCurrentLocation(req, res) {
       current_lng: trip.current_lng,
       current_phase: trip.current_phase,
       active: trip.active,
-      updated_at: trip.updated_at
+      updated_at: trip.updatedAt,
+      updatedAt: trip.updatedAt
     });
   } catch (error) {
     console.error("Error fetching current location:", error);
