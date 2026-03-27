@@ -263,6 +263,17 @@ export async function acceptTrip(req, res) {
       return res.status(400).json({ error: "Assignment is not pending acceptance" });
     }
 
+    const concurrent = await Trip.findOne({
+      where: {
+        user_id: trip.user_id,
+        id: { [Op.ne]: trip.id },
+        current_phase: { [Op.in]: ["ACCEPTED", "ACTIVE", "REACHED_DESTINATION", "RETURNING_HOME"] }
+      }
+    });
+    if (concurrent) {
+      return res.status(409).json({ error: "You already have an ongoing assignment. Please finalize it before accepting a new one." });
+    }
+
     trip.current_phase = "ACCEPTED";
     await trip.save();
 
@@ -315,6 +326,17 @@ export async function startTrip(req, res) {
 
     if (trip.current_phase === "ACTIVE") {
       return res.json({ message: "Assignment already active", ok: true });
+    }
+
+    const concurrent = await Trip.findOne({
+      where: {
+        user_id: trip.user_id,
+        id: { [Op.ne]: trip.id },
+        current_phase: { [Op.in]: ["ACCEPTED", "ACTIVE", "REACHED_DESTINATION", "RETURNING_HOME"] }
+      }
+    });
+    if (concurrent) {
+      return res.status(409).json({ error: "Cannot start: another assignment is in progress for this rider." });
     }
 
     // Safety Check Enforcement
